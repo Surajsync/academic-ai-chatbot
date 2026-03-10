@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REC Bijnor — Academic AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0e1117;
+  --ink2: #1a2235;
+  --saffron: #e8820c;
+  --saffron-pale: #f5a93a;
+  --saffron-glow: rgba(232,130,12,0.15);
+  --teal: #0d9488;
+  --teal-dim: rgba(13,148,136,0.12);
+  --cream: #f7f3ea;
+  --cream2: #ede8db;
+  --muted: #7a8599;
+  --border: rgba(232,130,12,0.18);
+  --border-subtle: rgba(255,255,255,0.06);
+  --glass-bg: rgba(14,17,23,0.85);
+  --msg-user: linear-gradient(135deg, #e8820c, #f5a93a);
+  --msg-bot: rgba(26,34,53,0.9);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Outfit',sans-serif;
+  background:var(--ink);
+  color:var(--cream);
+  height:100vh;
+  position:relative;
+}
+
+/* ━━ APP LAYOUT ━━ */
+.app{
+  position:relative;z-index:1;
+  height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:16px;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   AUTH PANEL
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.auth-wrap{
+  width:100%;max-width:460px;
+  animation:riseIn 0.7s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.auth-panel{
+  background:var(--glass-bg);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:44px 42px 40px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04) inset,
+    0 32px 80px rgba(0,0,0,0.5),
+    0 0 60px rgba(232,130,12,0.05);
+}
+
+/* logo block */
+.logo-block{
+  display:flex;flex-direction:column;align-items:center;
+  margin-bottom:32px;
+  gap:14px;
+}
+.logo-ring{
+  position:relative;
+  width:96px;height:96px;
+}
+.logo-ring::before{
+  content:'';
+  position:absolute;inset:-4px;
+  border-radius:50%;
+  background:conic-gradient(from 0deg, var(--saffron), var(--saffron-pale), var(--teal), var(--saffron));
+  animation:spin 6s linear infinite;
+  padding:3px;
+}
+.logo-ring::after{
+  content:'';position:absolute;inset:0;
+  border-radius:50%;
+  background:var(--ink2);
+}
+.logo-img{
+  position:absolute;inset:4px;
+  border-radius:50%;
+  background:#fff;
+  display:flex;align-items:center;justify-content:center;
+  z-index:2;overflow:hidden;
+}
+.logo-img img{width:100%;height:100%;object-fit:contain;border-radius:50%;}
+.college-name{
+  text-align:center;
+}
+.college-name h1{
+  font-family:'Cormorant Garamond',serif;
+  font-size:21px;font-weight:700;
+  line-height:1.2;color:var(--cream);
+  letter-spacing:0.3px;
+}
+.college-name .tagline{
+  font-size:11px;letter-spacing:2.5px;text-transform:uppercase;
+  color:var(--saffron);font-weight:500;margin-top:5px;
+  font-family:'Fira Code',monospace;
+}
+
+/* tabs */
+.auth-tabs{
+  display:flex;gap:4px;
+  background:rgba(255,255,255,0.04);
+  border-radius:10px;padding:4px;
+  margin-bottom:24px;
+}
+.tab-btn{
+  flex:1;padding:9px;border:none;border-radius:7px;
+  font-family:'Outfit';font-size:13px;font-weight:500;
+  cursor:pointer;transition:all 0.22s;
+  color:var(--muted);background:none;
+}
+.tab-btn.active{
+  background:var(--saffron);color:#fff;
+  box-shadow:0 2px 12px rgba(232,130,12,0.35);
+}
+
+/* form fields */
+.field{margin-bottom:16px;}
+.field label{
+  display:block;font-size:10.5px;letter-spacing:1.8px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:7px;font-weight:500;
+}
+.field input, .field select{
+  width:100%;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.09);
+  border-radius:10px;
+  padding:12px 14px;
+  color:var(--cream);
+  font-family:'Outfit';font-size:14px;
+  outline:none;transition:all 0.2s;
+  appearance:none;
+}
+.field input:focus,.field select:focus{
+  border-color:var(--saffron);
+  background:rgba(232,130,12,0.06);
+  box-shadow:0 0 0 3px rgba(232,130,12,0.1);
+}
+
+/* submit button */
+.btn-submit{
+  width:100%;
+  background:linear-gradient(135deg,var(--saffron) 0%,var(--saffron-pale) 100%);
+  border:none;border-radius:10px;
+  padding:14px;margin-top:4px;
+  font-family:'Outfit';font-size:14px;font-weight:600;
+  color:#fff;cursor:pointer;
+  letter-spacing:0.4px;
+  transition:all 0.2s;
+  position:relative;overflow:hidden;
+}
+.btn-submit::before{
+  content:'';position:absolute;top:0;left:-100%;
+  width:60%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);
+  transition:left 0.5s;
+}
+.btn-submit:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(232,130,12,0.4);}
+.btn-submit:hover::before{left:140%;}
+.btn-submit:active{transform:translateY(0);}
+
+/* error */
+.err{
+  color:#f87171;font-size:12px;
+  margin-top:-10px;margin-bottom:10px;
+  display:none;padding-left:2px;
+}
+
+/* form visibility */
+.form-panel{display:none;}
+.form-panel.active{display:block;}
+
+</style>
+</head>
+<body>
+<div class="bg-canvas">
+  <div class="gear-deco gear-1"></div>
+  <div class="gear-deco gear-2"></div>
+</div>
+
+<!-- ══════ AUTH ══════ -->
+<div class="app" id="authApp">
+  <div class="auth-wrap">
+    <div class="auth-panel">
+
+      <div class="logo-block">
+        <div class="logo-ring">
+          <div class="logo-img">
+            <img src="/logo.png" alt="REC Bijnor">
+          </div>
+        </div>
+        <div class="college-name">
+          <h1>Rajkiya Engineering College<br>Bijnor</h1>
+          <div class="tagline">Academic AI</div>
+        </div>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+        <button class="tab-btn" onclick="switchTab('register')">Register</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="form-panel active" id="loginPanel">
+        <div class="field">
+          <label>College ID / Faculty ID</label>
+          <input type="text" id="liId" placeholder="e.g. xyz@recb.ac.in" autocomplete="username">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="liPass" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="err" id="liErr">Incorrect ID or password. Try demo / demo123.</div>
+        <button class="btn-submit" onclick="doLogin()">Sign In →</button>
+        <p style="text-align:center;margin-top:14px;font-size:12px;color:var(--muted)">
+          Note: <span style="color:var(--saffron);font-family:monospace">Your chat may be used for feedback and improvement.</span>
+        </p>
+      </div>
+
+      <!-- REGISTER — Step 1: Details -->
+      <div class="form-panel" id="regPanel">
+        <div class="field">
+          <label>Full Name</label>
+          <input type="text" id="rgName" placeholder="Your full name">
+        </div>
+        <div class="field">
+          <label>College / Faculty Email</label>
+          <input type="email" id="Id" placeholder="e.g. xyz@recb.ac.in" autocomplete="username">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="rgPass" placeholder="Create a strong password">
+        </div>
+        <div class="err" id="rgErr">Please fill in all fields correctly.</div>
+        <button class="btn-submit" id="sendOtpBtn" onclick="sendOtp()">Send OTP to Email →</button>
+      </div>
+
+      <!-- REGISTER — Step 2: OTP Verification -->
+      <div class="form-panel" id="otpPanel">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font-size:36px;margin-bottom:10px;">📧</div>
+          <p style="font-size:13px;color:var(--muted);line-height:1.6;">
+            A 6-digit OTP has been sent to<br>
+            <strong id="otp-email-display" style="color:var(--saffron);font-family:monospace;"></strong>
+          </p>
+        </div>
+        <div class="field">
+          <label>Enter OTP</label>
+          <input type="text" id="otpInput" placeholder="_ _ _ _ _ _"
+            maxlength="6"
+            style="text-align:center;font-size:22px;letter-spacing:10px;font-family:monospace;"
+            onkeydown="if(event.key==='Enter')verifyOtp()">
+        </div>
+        <div class="err" id="otpErr">Invalid or expired OTP.</div>
+        <button class="btn-submit" onclick="verifyOtp()">Verify & Create Account →</button>
+        <p style="text-align:center;margin-top:14px;font-size:12px;color:var(--muted);">
+          Didn't receive it?
+          <span id="resend-link" style="color:var(--saffron);cursor:pointer;" onclick="resendOtp()">Resend OTP</span>
+          <span id="resend-timer" style="color:var(--muted);display:none;"></span>
+        </p>
+        <p style="text-align:center;margin-top:8px;font-size:12px;">
+          <span style="color:var(--muted);cursor:pointer;" onclick="switchTab('register')">← Back</span>
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+
+const API_BASE = "http://localhost:8000";
+
+// OTP state
+let pendingReg = {};
+let resendCountdown = null;
+
+/* ─── TAB SWITCH ─── */
+function switchTab(tab) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".form-panel").forEach(p => p.classList.remove("active"));
+
+  if (tab === "login") {
+    document.querySelectorAll(".tab-btn")[0].classList.add("active");
+    document.getElementById("loginPanel").classList.add("active");
+  } else {
+    document.querySelectorAll(".tab-btn")[1].classList.add("active");
+    document.getElementById("regPanel").classList.add("active");
+  }
+}
+
+/* ─── LOGIN ─── */
+async function doLogin() {
+  const id       = document.getElementById("liId").value.trim();
+  const password = document.getElementById("liPass").value.trim();
+  const errBox   = document.getElementById("liErr");
+
+  if (!id || !password) {
+    errBox.textContent = "All fields required.";
+    errBox.style.display = "block"; return;
+  }
+
+  try {
+    const formData = new URLSearchParams();
+    formData.append("username", id);
+    formData.append("password", password);
+
+    const res  = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Login failed");
+
+    localStorage.clear();
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("username",     data.username);
+    localStorage.setItem("role",         data.role);
+
+    window.location.href = data.role === "admin" ? "admin_ui.html" : "chat_ui.html";
+
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = "block";
+  }
+}
+
+/* ─── STEP 1 : SEND OTP ─── */
+async function sendOtp() {
+  const name     = document.getElementById("rgName").value.trim();
+  const email    = document.getElementById("Id").value.trim();
+  const password = document.getElementById("rgPass").value.trim();
+  const errBox   = document.getElementById("rgErr");
+
+  if (!name || !email || !password) {
+    errBox.textContent = "Please fill in all fields.";
+    errBox.style.display = "block"; return;
+  }
+  if (!email.includes("@")) {
+    errBox.textContent = "Enter a valid email address.";
+    errBox.style.display = "block"; return;
+  }
+  if (password.length < 6) {
+    errBox.textContent = "Password must be at least 6 characters.";
+    errBox.style.display = "block"; return;
+  }
+
+  // Save for step 2
+  pendingReg = { name, email, password };
+
+  const btn = document.getElementById("sendOtpBtn");
+  btn.textContent = "Sending…";
+  btn.disabled = true;
+
+  try {
+    const res  = await fetch(`${API_BASE}/auth/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Could not send OTP");
+
+    // Show OTP panel
+    document.getElementById("regPanel").classList.remove("active");
+    document.getElementById("otpPanel").classList.add("active");
+    document.getElementById("otp-email-display").textContent = email;
+    document.getElementById("otpInput").value = "";
+    document.getElementById("otpErr").style.display = "none";
+    startResendTimer(60);
+
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = "block";
+  } finally {
+    btn.textContent = "Send OTP to Email →";
+    btn.disabled = false;
+  }
+}
+
+/* ─── STEP 2 : VERIFY OTP & REGISTER ─── */
+async function verifyOtp() {
+  const otp    = document.getElementById("otpInput").value.trim();
+  const errBox = document.getElementById("otpErr");
+
+  if (otp.length !== 6) {
+    errBox.textContent = "Enter the 6-digit OTP.";
+    errBox.style.display = "block"; return;
+  }
+
+  try {
+    // Verify OTP first
+    const vRes  = await fetch(`${API_BASE}/auth/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: pendingReg.email, otp })
+    });
+    const vData = await vRes.json();
+    if (!vRes.ok) throw new Error(vData.detail || "Invalid OTP");
+
+    // OTP valid — now register
+    const rRes  = await fetch(`${API_BASE}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        full_name: pendingReg.name,
+        email:     pendingReg.email,
+        password:  pendingReg.password
+      })
+    });
+    const rData = await rRes.json();
+    if (!rRes.ok) throw new Error(rData.detail || "Registration failed");
+
+    // Success
+    clearInterval(resendCountdown);
+    showSuccess("Account created! Please sign in.");
+    setTimeout(() => switchTab("login"), 1800);
+
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = "block";
+  }
+}
+
+/* ─── RESEND OTP ─── */
+async function resendOtp() {
+  document.getElementById("otpErr").style.display = "none";
+  document.getElementById("otpInput").value = "";
+  try {
+    const res = await fetch(`${API_BASE}/auth/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: pendingReg.email })
+    });
+    if (!res.ok) throw new Error("Failed");
+    startResendTimer(60);
+  } catch {
+    document.getElementById("otpErr").textContent = "Could not resend OTP. Try again.";
+    document.getElementById("otpErr").style.display = "block";
+  }
+}
+
+/* ─── RESEND COUNTDOWN ─── */
+function startResendTimer(seconds) {
+  const link  = document.getElementById("resend-link");
+  const timer = document.getElementById("resend-timer");
+  link.style.display  = "none";
+  timer.style.display = "inline";
+  clearInterval(resendCountdown);
+  let s = seconds;
+  timer.textContent = `Resend in ${s}s`;
+  resendCountdown = setInterval(() => {
+    s--;
+    if (s <= 0) {
+      clearInterval(resendCountdown);
+      timer.style.display = "none";
+      link.style.display  = "inline";
+    } else {
+      timer.textContent = `Resend in ${s}s`;
+    }
+  }, 1000);
+}
+
+/* ─── SUCCESS TOAST ─── */
+function showSuccess(msg) {
+  const t = document.createElement("div");
+  t.style.cssText = `
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:#10b981;color:#fff;padding:12px 24px;
+    border-radius:10px;font-size:14px;font-weight:500;
+    z-index:9999;animation:fadeIn 0.3s ease;
+  `;
+  t.textContent = "✅  " + msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+</script>
+
+</body>
+</html>

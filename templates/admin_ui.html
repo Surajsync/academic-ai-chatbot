@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REC Bijnor — Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg:#080c14;--bg2:#0d1424;--bg3:#111827;--sidebar:#090e1a;
+  --card:#0f1829;--card2:#141f33;
+  --saffron:#f0900d;--saf2:#fbb040;--saf-glow:rgba(240,144,13,0.12);--saf-dim:rgba(240,144,13,0.07);
+  --teal:#14b8a6;--cream:#eef2f7;--cream2:#c8d0de;--muted:#5a6a82;--muted2:#3d4f68;
+  --border:rgba(240,144,13,0.15);--border2:rgba(255,255,255,0.05);
+  --red:#f43f5e;--green:#10d9a0;--yellow:#fbbf24;--blue:#60a5fa;
+  --shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--cream);display:flex}
+
+.sidebar{width:230px;min-width:230px;background:var(--sidebar);border-right:1px solid var(--border2);display:flex;flex-direction:column;position:relative;z-index:10}
+.sidebar::after{content:'';position:absolute;right:0;top:20%;bottom:20%;width:1px;background:linear-gradient(to bottom,transparent,var(--saffron),transparent);opacity:0.3}
+.sidebar-logo{padding:22px 20px 18px;border-bottom:1px solid var(--border2)}
+.sidebar-logo img{width:36px;height:36px;border-radius:50%;object-fit:contain;background:white;border:2px solid var(--saffron);margin-bottom:10px;display:block}
+.brand{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:700;color:var(--saffron);line-height:1.2}
+.sub-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.5px;color:var(--muted);margin-top:5px;text-transform:uppercase}
+.nav-group-label{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted2);padding:18px 20px 6px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;margin:1px 10px;border-radius:8px;cursor:pointer;border:none;background:none;width:calc(100% - 20px);color:var(--muted);font-family:'Sora';font-size:13px;font-weight:500;text-align:left;transition:all 0.18s}
+.nav-item:hover{background:var(--saf-dim);color:var(--cream2)}
+.nav-item.active{background:var(--saf-glow);color:var(--saffron);box-shadow:inset 3px 0 0 var(--saffron)}
+.nav-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:rgba(244,63,94,0.2);color:var(--red);font-size:10px;padding:1px 6px;border-radius:20px;font-weight:600}
+.sidebar-footer{margin-top:auto;padding:14px 12px;border-top:1px solid var(--border2)}
+.admin-card{background:var(--saf-glow);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.admin-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--saffron),var(--saf2));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
+.admin-card .info{flex:1;min-width:0}
+.admin-card .aname{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin-card .arole{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--saffron);letter-spacing:1px;margin-top:2px}
+.logout-btn{width:100%;padding:9px;border-radius:8px;border:1px solid var(--border2);background:none;color:var(--muted);font-family:'Sora';font-size:12px;cursor:pointer;transition:all 0.18s;display:flex;align-items:center;justify-content:center;gap:6px}
+.logout-btn:hover{border-color:var(--red);color:var(--red);background:rgba(244,63,94,0.06)}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:58px;background:var(--bg2);display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border2);flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar-title{font-size:16px;font-weight:600}
+.breadcrumb{font-size:11px;color:var(--muted)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.sys-status{display:flex;align-items:center;gap:6px;background:rgba(16,217,160,0.08);border:1px solid rgba(16,217,160,0.2);padding:5px 12px;border-radius:20px;font-size:11px;color:var(--green)}
+.sys-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.time-display{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+.content{padding:20px 24px;overflow-y:auto;flex:1}
+.content::-webkit-scrollbar{width:5px}
+.content::-webkit-scrollbar-thumb{background:var(--muted2);border-radius:5px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:18px;position:relative;overflow:hidden;cursor:pointer;transition:all 0.22s}
+.stat-card:hover{border-color:var(--border);transform:translateY(-2px);box-shadow:var(--shadow)}
+.bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.c1 .bar,.bar.c1{background:linear-gradient(90deg,var(--saffron),var(--saf2))}
+.c2 .bar,.bar.c2{background:linear-gradient(90deg,var(--green),var(--teal))}
+.c3 .bar,.bar.c3{background:linear-gradient(90deg,var(--blue),#818cf8)}
+.c4 .bar,.bar.c4{background:linear-gradient(90deg,var(--red),#fb7185)}
+.stat-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;font-weight:500}
+.stat-icon{font-size:20px;opacity:0.5}
+.stat-value{font-size:36px;font-weight:700;line-height:1}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:6px}
+
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-hdr h2{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.count{font-size:12px;color:var(--muted);font-weight:400}
+
+.btn{padding:8px 16px;border-radius:8px;border:none;font-family:'Sora';font-size:12px;font-weight:500;cursor:pointer;transition:all 0.18s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--saffron);color:#fff}
+.btn-primary:hover{background:var(--saf2);box-shadow:0 4px 16px rgba(240,144,13,0.35)}
+.btn-success{background:rgba(16,217,160,0.12);color:var(--green);border:1px solid rgba(16,217,160,0.2)}
+.btn-success:hover{background:rgba(16,217,160,0.2)}
+.btn-danger{background:rgba(244,63,94,0.1);color:var(--red);border:1px solid rgba(244,63,94,0.2)}
+.btn-danger:hover{background:rgba(244,63,94,0.2)}
+.btn-ghost{background:rgba(255,255,255,0.04);color:var(--muted);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--cream2);background:rgba(255,255,255,0.07)}
+.btn-blue{background:rgba(96,165,250,0.1);color:var(--blue);border:1px solid rgba(96,165,250,0.2)}
+.btn-sm{padding:5px 10px;font-size:11px}
+
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.search-wrap{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;transition:border-color 0.18s}
+.search-wrap:focus-within{border-color:var(--border)}
+.search-wrap input{background:none;border:none;outline:none;color:var(--cream);font-family:'Sora';font-size:13px;flex:1}
+.search-wrap input::placeholder{color:var(--muted)}
+.filter-select{background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;color:var(--cream2);font-family:'Sora';font-size:12px;outline:none;cursor:pointer}
+.filter-select:focus{border-color:var(--border)}
+
+.table-wrap{background:var(--card);border:1px solid var(--border2);border-radius:14px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{padding:11px 16px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;background:var(--card2);border-bottom:1px solid var(--border2);text-align:left;white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border2);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.015)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge::before{content:'●';font-size:7px}
+.badge-green{background:rgba(16,217,160,0.1);color:var(--green)}
+.badge-red{background:rgba(244,63,94,0.1);color:var(--red)}
+.badge-yellow{background:rgba(251,191,36,0.1);color:var(--yellow)}
+.badge-blue{background:rgba(96,165,250,0.1);color:var(--blue)}
+.badge-orange{background:rgba(240,144,13,0.1);color:var(--saffron)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;max-width:260px}
+.chip{background:var(--saf-dim);border:1px solid rgba(240,144,13,0.2);color:var(--saffron);padding:2px 7px;border-radius:20px;font-size:10px;font-family:'JetBrains Mono',monospace}
+.truncate{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.action-group{display:flex;gap:5px;align-items:center}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:1000;animation:fadeIn 0.15s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--bg3);border:1px solid var(--border);border-radius:18px;padding:28px;width:540px;max-width:94vw;max-height:90vh;overflow-y:auto;animation:popUp 0.22s cubic-bezier(0.34,1.56,0.64,1);box-shadow:0 24px 80px rgba(0,0,0,0.6)}
+@keyframes popUp{from{transform:scale(0.9);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.modal-header h2{font-size:16px;font-weight:600}
+.modal-close{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.06);border:none;color:var(--muted);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.modal-close:hover{background:rgba(244,63,94,0.15);color:var(--red)}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;font-weight:600}
+.field input,.field textarea,.field select{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border2);border-radius:9px;padding:10px 13px;color:var(--cream);font-family:'Sora';font-size:13px;outline:none;transition:all 0.18s;resize:vertical}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--saffron);background:var(--saf-dim);box-shadow:0 0 0 3px rgba(240,144,13,0.1)}
+.field textarea{min-height:100px}
+.field .hint{font-size:11px;color:var(--muted);margin-top:5px}
+.char-count{font-size:10px;color:var(--muted);float:right;margin-top:4px;font-family:'JetBrains Mono',monospace}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border2)}
+
+.empty{text-align:center;padding:56px 20px;color:var(--muted)}
+.empty-icon{font-size:42px;margin-bottom:14px;opacity:0.6}
+.empty h3{font-size:15px;font-weight:600;color:var(--cream2);margin-bottom:6px}
+.empty p{font-size:13px;line-height:1.6;max-width:300px;margin:0 auto}
+
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;font-size:13px;display:flex;align-items:center;gap:10px;min-width:260px;box-shadow:var(--shadow);animation:slideIn 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes slideIn{from{transform:translateX(120px);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast.out{animation:slideOut 0.3s ease forwards}
+@keyframes slideOut{to{transform:translateX(120px);opacity:0}}
+.toast-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.toast.success .toast-icon{background:rgba(16,217,160,0.15)}
+.toast.error .toast-icon{background:rgba(244,63,94,0.15)}
+.toast.info .toast-icon{background:rgba(96,165,250,0.15)}
+.toast-msg{flex:1;font-size:13px}
+.toast-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0;line-height:1}
+
+.dash-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+.panel{background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:20px}
+.panel-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:16px}
+.quick-action{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.025);border:1px solid var(--border2);cursor:pointer;transition:all 0.18s;margin-bottom:8px;text-align:left;width:100%}
+.quick-action:hover{background:var(--saf-dim);border-color:var(--border);transform:translateX(4px)}
+.qa-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.qa-title{font-size:13px;font-weight:500}
+.qa-desc{font-size:11px;color:var(--muted);margin-top:2px}
+
+.progress-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.progress-label{font-size:12px;color:var(--cream2);min-width:130px}
+.progress-track{flex:1;height:6px;background:var(--border2);border-radius:6px;overflow:hidden}
+.progress-fill{height:100%;border-radius:6px;transition:width 0.6s ease}
+.progress-value{font-size:11px;color:var(--muted);min-width:32px;text-align:right;font-family:'JetBrains Mono',monospace}
+
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border2)}
+.page-info{font-size:12px;color:var(--muted)}
+.page-btns{display:flex;gap:4px}
+.page-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);background:none;color:var(--muted);cursor:pointer;font-size:12px;transition:all 0.15s;display:flex;align-items:center;justify-content:center}
+.page-btn:hover{border-color:var(--border);color:var(--cream2)}
+.page-btn.active{background:var(--saffron);border-color:var(--saffron);color:#fff}
+
+.users-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.user-card{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:16px;transition:all 0.2s}
+.user-card:hover{border-color:var(--border);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.user-card-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.user-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0}
+.user-card-name{font-size:13px;font-weight:600}
+.user-card-email{font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.user-card-footer{display:flex;align-items:center;justify-content:space-between}
+
+.info-box{background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--blue);line-height:1.6;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
+.info-icon{font-size:15px;margin-top:1px;flex-shrink:0}
+.warn-box{background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--yellow);line-height:1.6;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
+
+@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}}
+@media(max-width:768px){.sidebar{width:60px;min-width:60px}.brand,.sub-label,.nav-item span:not(.nav-icon),.nav-group-label,.admin-card .info,.logout-btn span{display:none}.nav-item{padding:10px;margin:1px 5px;justify-content:center}}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <img src="/logo.png" alt="REC">
+    <div class="brand">REC Bijnor</div>
+    <div class="sub-label">Admin Panel</div>
+  </div>
+  <div class="nav-group-label">Overview</div>
+  <button class="nav-item active" id="nav-dashboard" onclick="goto('dashboard')"><span class="nav-icon">📊</span><span>Dashboard</span></button>
+  <div class="nav-group-label">Chatbot</div>
+  <button class="nav-item" id="nav-faqs" onclick="goto('faqs')"><span class="nav-icon">🧠</span><span>Knowledge Base</span></button>
+  <button class="nav-item" id="nav-failed" onclick="goto('failed')"><span class="nav-icon">⚠️</span><span>Failed Queries</span><span class="nav-badge" id="failed-badge" style="display:none">0</span></button>
+  <div class="nav-group-label">People</div>
+  <button class="nav-item" id="nav-users" onclick="goto('users')"><span class="nav-icon">👥</span><span>Users</span></button>
+  <div class="nav-group-label">System</div>
+  <button class="nav-item" id="nav-audit" onclick="goto('audit')"><span class="nav-icon">📋</span><span>Audit Logs</span></button>
+  <button class="nav-item" id="nav-help" onclick="goto('help')"><span class="nav-icon">❓</span><span>Help & Guide</span></button>
+  <div class="sidebar-footer">
+    <div class="admin-card">
+      <div class="admin-avatar" id="admin-av">A</div>
+      <div class="info"><div class="aname" id="admin-name">Admin</div><div class="arole">● ADMIN</div></div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()"><span>🚪</span><span>Sign Out</span></button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-title" id="page-title">Dashboard</span>
+      <span class="breadcrumb" id="breadcrumb">Home / Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <div class="time-display" id="clock">--:--</div>
+      <div class="sys-status">Systems Operational</div>
+    </div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+const API   = "http://127.0.0.1:8000";
+const token = localStorage.getItem("access_token");
+const uname = localStorage.getItem("username") || "Admin";
+if (!token) location.href = "auth_ui.html";
+document.getElementById("admin-name").textContent = uname;
+document.getElementById("admin-av").textContent   = uname.charAt(0).toUpperCase();
+setInterval(()=>{ document.getElementById("clock").textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); },1000);
+
+let allFaqs=[], allUsers=[], currentPage=1, faqsPerPage=15;
+function H(){return{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"}}
+
+function goto(page){
+  document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
+  const btn=document.getElementById("nav-"+page);
+  if(btn) btn.classList.add("active");
+  const titles={dashboard:"Dashboard",faqs:"Knowledge Base",failed:"Failed Queries",users:"Users",audit:"Audit Logs",help:"Help & Guide"};
+  document.getElementById("page-title").textContent  = titles[page]||page;
+  document.getElementById("breadcrumb").textContent  = "Home / "+(titles[page]||page);
+  const fn={dashboard:loadDashboard,faqs:loadFAQs,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
+  if(fn[page]) fn[page]();
+}
+
+function toast(msg,type="success"){
+  const icons={success:"✅",error:"❌",info:"ℹ️",warn:"⚠️"};
+  const t=document.createElement("div");
+  t.className=`toast ${type}`;
+  t.innerHTML=`<div class="toast-icon">${icons[type]||"ℹ️"}</div><div class="toast-msg">${msg}</div><button class="toast-close" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById("toast-wrap").appendChild(t);
+  setTimeout(()=>{t.classList.add("out");setTimeout(()=>t.remove(),300);},3500);
+}
+
+function modal(html){
+  const o=document.createElement("div");
+  o.className="overlay";o.id="modal-overlay";
+  o.innerHTML=`<div class="modal">${html}</div>`;
+  o.addEventListener("click",e=>{if(e.target===o)closeModal();});
+  document.body.appendChild(o);
+  setTimeout(()=>o.querySelector("input,textarea")?.focus(),100);
+}
+function closeModal(){document.getElementById("modal-overlay")?.remove()}
+function doLogout(){localStorage.clear();location.href="auth_ui.html"}
+
+// ── DASHBOARD ──
+async function loadDashboard(){
+  document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">⏳</div><p>Loading dashboard...</p></div>`;
+  try{
+    const [dRes,fRes,uRes]=await Promise.all([
+      fetch(`${API}/admin/dashboard`,{headers:H()}),
+      fetch(`${API}/admin/failed`,{headers:H()}),
+      fetch(`${API}/admin/users`,{headers:H()}).catch(()=>({ok:false}))
+    ]);
+    if(dRes.status===403){toast("Session expired","error");doLogout();return}
+    const d=await dRes.json();
+    const failed=fRes.ok?await fRes.json():[];
+    const users=uRes.ok?await uRes.json():[];
+    const highFreq=failed.filter(f=>f.frequency>=3).length;
+    if(highFreq>0){document.getElementById("failed-badge").textContent=highFreq;document.getElementById("failed-badge").style.display="inline"}
+    const coveragePct=d.total_faqs>0?Math.round((d.active_faqs/d.total_faqs)*100):0;
+
+    document.getElementById("content").innerHTML=`
+      <div class="stats-grid">
+        <div class="stat-card c1" onclick="goto('faqs')">
+          <div class="bar"></div>
+          <div class="stat-top"><div class="stat-label">Total FAQs</div><div class="stat-icon">🧠</div></div>
+          <div class="stat-value">${d.total_faqs??0}</div>
+          <div class="stat-sub">${d.active_faqs??0} active · ${(d.total_faqs??0)-(d.active_faqs??0)} inactive</div>
+        </div>
+        <div class="stat-card c2">
+          <div class="bar"></div>
+          <div class="stat-top"><div class="stat-label">Conversations</div><div class="stat-icon">💬</div></div>
+          <div class="stat-value">${d.total_conversations??0}</div>
+          <div class="stat-sub">All-time student chats</div>
+        </div>
+        <div class="stat-card c3" onclick="goto('users')">
+          <div class="bar"></div>
+          <div class="stat-top"><div class="stat-label">Total Users</div><div class="stat-icon">👥</div></div>
+          <div class="stat-value">${users.length||'—'}</div>
+          <div class="stat-sub">${users.filter(u=>u.role==='admin').length} admins · ${users.filter(u=>u.role==='user').length} students</div>
+        </div>
+        <div class="stat-card c4" onclick="goto('failed')">
+          <div class="bar"></div>
+          <div class="stat-top"><div class="stat-label">Failed Queries</div><div class="stat-icon">⚠️</div></div>
+          <div class="stat-value">${d.failed_queries??0}</div>
+          <div class="stat-sub">${highFreq} need urgent attention</div>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div class="panel">
+          <div class="panel-title">📈 Chatbot Health</div>
+          <div class="progress-row">
+            <div class="progress-label">FAQ Coverage</div>
+            <div class="progress-track"><div class="progress-fill" style="width:${coveragePct}%;background:linear-gradient(90deg,var(--saffron),var(--saf2))"></div></div>
+            <div class="progress-value">${coveragePct}%</div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-label">Active FAQs</div>
+            <div class="progress-track"><div class="progress-fill" style="width:${d.total_faqs?Math.round(d.active_faqs/d.total_faqs*100):0}%;background:linear-gradient(90deg,var(--green),var(--teal))"></div></div>
+            <div class="progress-value">${d.active_faqs??0}</div>
+          </div>
+          <div style="margin-top:20px"><canvas id="convChart" height="140"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">⚡ Quick Actions</div>
+          <button class="quick-action" onclick="goto('faqs');setTimeout(openAddFAQ,400)">
+            <div class="qa-icon" style="background:rgba(240,144,13,0.15)">➕</div>
+            <div><div class="qa-title">Add New FAQ</div><div class="qa-desc">Teach the chatbot a new answer</div></div>
+          </button>
+          <button class="quick-action" onclick="goto('failed')">
+            <div class="qa-icon" style="background:rgba(244,63,94,0.15)">⚠️</div>
+            <div><div class="qa-title">Fix Failed Queries</div><div class="qa-desc">${failed.length} unanswered questions</div></div>
+          </button>
+          <button class="quick-action" onclick="goto('users')">
+            <div class="qa-icon" style="background:rgba(96,165,250,0.15)">👥</div>
+            <div><div class="qa-title">Manage Users</div><div class="qa-desc">${users.length} registered users</div></div>
+          </button>
+          <button class="quick-action" onclick="goto('help')">
+            <div class="qa-icon" style="background:rgba(16,217,160,0.15)">❓</div>
+            <div><div class="qa-title">Help & Guide</div><div class="qa-desc">How to use this panel</div></div>
+          </button>
+        </div>
+      </div>`;
+
+    new Chart(document.getElementById("convChart"),{
+      type:"doughnut",
+      data:{labels:["Active FAQs","Inactive","Failed"],datasets:[{data:[d.active_faqs??0,(d.total_faqs??0)-(d.active_faqs??0),d.failed_queries??0],backgroundColor:["#f0900d","#1a2235","#f43f5e"],borderColor:["#fbb040","#2a3550","#fb7185"],borderWidth:2}]},
+      options:{plugins:{legend:{labels:{color:"#c8d0de",font:{family:"Sora",size:11},boxWidth:12}}},cutout:"62%"}
+    });
+  }catch(e){toast("Dashboard failed to load","error");console.error(e)}
+}
+
+// ── KNOWLEDGE BASE ──
+async function loadFAQs(){
+  document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">⏳</div><p>Loading knowledge base...</p></div>`;
+  try{
+    const res=await fetch(`${API}/admin/faqs`,{headers:H()});
+    allFaqs=await res.json();currentPage=1;renderFAQs(allFaqs);
+  }catch(e){toast("Failed to load FAQs","error")}
+}
+
+function renderFAQs(faqs){
+  const total=faqs.length,pages=Math.ceil(total/faqsPerPage);
+  const start=(currentPage-1)*faqsPerPage,paged=faqs.slice(start,start+faqsPerPage);
+  let rows=paged.map(f=>{
+    const kw=f.keyword.split(",").map(k=>`<span class="chip">${k.trim()}</span>`).join("");
+    return `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">#${f.id}</td>
+      <td><div class="chips">${kw}</div></td>
+      <td><span class="truncate" title="${f.response.replace(/"/g,'&quot;')}">${f.response}</span></td>
+      <td><span class="badge ${f.is_active?'badge-green':'badge-red'}">${f.is_active?'Active':'Inactive'}</span></td>
+      <td><div class="action-group">
+        <button class="btn btn-ghost btn-sm" onclick='editFAQ(${f.id},${JSON.stringify(f.keyword)},${JSON.stringify(f.response)})'>✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteFAQ(${f.id})">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join("");
+  let pagerBtns="";
+  for(let i=1;i<=pages;i++) pagerBtns+=`<button class="page-btn ${i===currentPage?'active':''}" onclick="changePage(${i})">${i}</button>`;
+
+  document.getElementById("content").innerHTML=`
+    <div class="section-hdr">
+      <h2>🧠 Knowledge Base <span class="count">${total} total</span></h2>
+      <button class="btn btn-primary" onclick="openAddFAQ()">➕ Add FAQ</button>
+    </div>
+    <div class="info-box"><span class="info-icon">💡</span><span>The chatbot matches student questions to <strong>keywords</strong> below and replies with the saved response. More keywords = better accuracy. Separate keywords with commas.</span></div>
+    <div class="toolbar">
+      <div class="search-wrap"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search by keyword or response…" oninput="filterFAQs(this.value)" id="faq-search"></div>
+      <select class="filter-select" onchange="filterStatus(this.value)" id="filter-status">
+        <option value="all">All Status</option><option value="active">Active only</option><option value="inactive">Inactive only</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Keywords</th><th>Response</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="5"><div class="empty"><div class="empty-icon">📭</div><h3>No FAQs</h3><p>No results found.</p></div></td></tr>'}</tbody>
+      </table>
+      ${pages>1?`<div class="pagination"><div class="page-info">Showing ${start+1}–${Math.min(start+faqsPerPage,total)} of ${total}</div><div class="page-btns">${pagerBtns}</div></div>`:''}
+    </div>`;
+}
+
+function changePage(p){currentPage=p;renderFAQs(allFaqs)}
+function getFiltered(){
+  const q=document.getElementById("faq-search")?.value||"";
+  const s=document.getElementById("filter-status")?.value||"all";
+  let f=allFaqs.filter(x=>x.keyword.toLowerCase().includes(q.toLowerCase())||x.response.toLowerCase().includes(q.toLowerCase()));
+  if(s==="active") f=f.filter(x=>x.is_active);
+  if(s==="inactive") f=f.filter(x=>!x.is_active);
+  return f;
+}
+function filterFAQs(){currentPage=1;renderFAQs(getFiltered())}
+function filterStatus(){currentPage=1;renderFAQs(getFiltered())}
+
+function openAddFAQ(){
+  modal(`<div class="modal-header"><h2>➕ Add New FAQ</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="info-box"><span class="info-icon">💡</span><span>Keywords are the words/phrases students might type. Add as many variations as possible, separated by commas.</span></div>
+    <div class="field"><label>Keywords *</label><input type="text" id="m-kw" placeholder="e.g. fees, tuition fee, how much fees, semester fees"><div class="hint">Separate each keyword with a comma</div></div>
+    <div class="field"><label>Chatbot Response *</label><textarea id="m-res" placeholder="Type the answer the chatbot should give to students…" oninput="document.getElementById('m-cc').textContent=this.value.length+' chars'"></textarea><div class="char-count" id="m-cc">0 chars</div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitAddFAQ()">➕ Add to Knowledge Base</button></div>`);
+}
+
+async function submitAddFAQ(){
+  const kw=document.getElementById("m-kw")?.value.trim();
+  const res=document.getElementById("m-res")?.value.trim();
+  if(!kw||!res){toast("Both keyword and response are required","error");return}
+  try{
+    const r=await fetch(`${API}/admin/faqs`,{method:"POST",headers:H(),body:JSON.stringify({keyword:kw,response:res})});
+    if(!r.ok) throw new Error((await r.json()).detail||"Failed");
+    closeModal();toast("FAQ added to knowledge base ✓");loadFAQs();
+  }catch(e){toast(e.message,"error")}
+}
+
+function editFAQ(id,kw,res){
+  modal(`<div class="modal-header"><h2>✏️ Edit FAQ <span style="color:var(--muted);font-size:13px">#${id}</span></h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="field"><label>Keywords</label><input type="text" id="m-kw" value="${kw.replace(/"/g,'&quot;')}"><div class="hint">Separate each keyword with a comma</div></div>
+    <div class="field"><label>Chatbot Response</label><textarea id="m-res" oninput="document.getElementById('m-cc').textContent=this.value.length+' chars'">${res}</textarea><div class="char-count" id="m-cc">${res.length} chars</div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitEditFAQ(${id})">💾 Save Changes</button></div>`);
+}
+
+async function submitEditFAQ(id){
+  const kw=document.getElementById("m-kw")?.value.trim();
+  const res=document.getElementById("m-res")?.value.trim();
+  if(!kw||!res){toast("Both fields required","error");return}
+  try{
+    await fetch(`${API}/admin/faqs/${id}`,{method:"DELETE",headers:H()});
+    await fetch(`${API}/admin/faqs`,{method:"POST",headers:H(),body:JSON.stringify({keyword:kw,response:res})});
+    closeModal();toast("FAQ updated successfully ✓");loadFAQs();
+  }catch(e){toast("Update failed","error")}
+}
+
+function deleteFAQ(id){
+  modal(`<div class="modal-header"><h2>🗑️ Delete FAQ #${id}?</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="warn-box"><span class="info-icon">⚠️</span><span>This FAQ will be permanently removed. Students asking this question will no longer get an answer. This cannot be undone.</span></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Keep It</button><button class="btn btn-danger" onclick="confirmDeleteFAQ(${id})">Yes, Delete</button></div>`);
+}
+
+async function confirmDeleteFAQ(id){
+  try{await fetch(`${API}/admin/faqs/${id}`,{method:"DELETE",headers:H()});closeModal();toast("FAQ deleted");loadFAQs();}
+  catch(e){toast("Delete failed","error")}
+}
+
+// ── FAILED QUERIES ──
+async function loadFailed(){
+  document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">⏳</div><p>Loading...</p></div>`;
+  try{
+    const res=await fetch(`${API}/admin/failed`,{headers:H()});
+    const data=await res.json();
+    const sorted=data.sort((a,b)=>b.frequency-a.frequency);
+    if(sorted.length===0){
+      document.getElementById("content").innerHTML=`<div class="empty" style="padding:80px 20px"><div class="empty-icon">🎉</div><h3>All Clear!</h3><p>The chatbot is answering every question. No failed queries found.</p></div>`;
+      return;
+    }
+    const urgent=sorted.filter(f=>f.frequency>=5);
+    let rows=sorted.map(f=>{
+      const cls=f.frequency>=5?"badge-red":f.frequency>=2?"badge-yellow":"badge-green";
+      const lbl=f.frequency>=5?"🔴 High":f.frequency>=2?"🟡 Medium":"🟢 Low";
+      const safe=f.query_text.replace(/'/g,"\\'").replace(/"/g,"&quot;");
+      return `<tr>
+        <td style="max-width:300px">${f.query_text}</td>
+        <td><span class="badge ${cls}">${f.frequency}×</span></td>
+        <td>${lbl}</td>
+        <td style="color:var(--muted);font-size:11px;white-space:nowrap;font-family:'JetBrains Mono',monospace">${f.created_at?new Date(f.created_at).toLocaleDateString():'-'}</td>
+        <td><button class="btn btn-success btn-sm" onclick="convertToFAQ('${safe}')">➕ Add as FAQ</button></td>
+      </tr>`;
+    }).join("");
+
+    document.getElementById("content").innerHTML=`
+      <div class="section-hdr"><h2>⚠️ Failed Queries <span class="count">${data.length} unique</span></h2></div>
+      ${urgent.length>0?`<div class="warn-box"><span class="info-icon">🔴</span><span><strong>${urgent.length} high-priority queries</strong> asked 5+ times with no answer. Add them as FAQs to significantly improve the chatbot.</span></div>`:''}
+      <div class="info-box"><span class="info-icon">💡</span><span>These are questions students asked that the chatbot couldn't answer. Click <strong>"Add as FAQ"</strong> to teach the chatbot how to respond.</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Student's Question</th><th>Asked</th><th>Priority</th><th>First Seen</th><th>Fix It</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+  }catch(e){toast("Failed to load","error")}
+}
+
+function convertToFAQ(queryText){
+  modal(`<div class="modal-header"><h2>➕ Convert to FAQ</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="info-box"><span class="info-icon">💡</span><span>Edit the keywords to add more variations, then write the answer the chatbot should give.</span></div>
+    <div class="field"><label>Keywords</label><input type="text" id="m-kw" value="${queryText.replace(/"/g,'&quot;')}"><div class="hint">Add more keywords separated by commas</div></div>
+    <div class="field"><label>Chatbot Response *</label><textarea id="m-res" placeholder="Write the answer the chatbot should give…"></textarea></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitAddFAQ()">➕ Add to Knowledge Base</button></div>`);
+}
+
+// ── USERS ──
+async function loadUsers(){
+  document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">⏳</div><p>Loading users...</p></div>`;
+  try{
+    const res=await fetch(`${API}/admin/users`,{headers:H()});
+    if(res.status===404){document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">🚧</div><h3>Endpoint Not Found</h3><p>Add <code style="background:var(--card2);padding:2px 6px;border-radius:4px">GET /admin/users</code> to app.py</p></div>`;return}
+    allUsers=await res.json();renderUsers(allUsers);
+  }catch(e){toast("Failed to load users","error")}
+}
+
+function renderUsers(users){
+  const colors=["#f0900d","#14b8a6","#60a5fa","#f43f5e","#a78bfa","#fbbf24"];
+  const admins=users.filter(u=>u.role==="admin");
+  let cards=users.map((u,i)=>{
+    const col=colors[i%colors.length];
+    const rb=u.role==="admin"?`<span class="badge badge-orange">👑 Admin</span>`:`<span class="badge badge-blue">👤 Student</span>`;
+    return `<div class="user-card">
+      <div class="user-card-top">
+        <div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div>
+        <div><div class="user-card-name">${u.username}</div><div class="user-card-email" title="${u.email}">${u.email}</div></div>
+      </div>
+      <div class="user-card-footer">${rb}<button class="btn btn-ghost btn-sm" onclick="toggleRole(${u.id},'${u.role}','${u.username}')">🔄 Change Role</button></div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("content").innerHTML=`
+    <div class="section-hdr"><h2>👥 Users <span class="count">${users.length} total</span></h2></div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="stat-card c1" style="flex:1;min-width:120px;padding:14px"><div class="bar"></div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Admins</div><div style="font-size:28px;font-weight:700;margin-top:4px">${admins.length}</div></div>
+      <div class="stat-card c3" style="flex:1;min-width:120px;padding:14px"><div class="bar"></div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Students</div><div style="font-size:28px;font-weight:700;margin-top:4px">${users.length-admins.length}</div></div>
+      <div class="stat-card c2" style="flex:1;min-width:120px;padding:14px"><div class="bar"></div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Total</div><div style="font-size:28px;font-weight:700;margin-top:4px">${users.length}</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search-wrap"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search by name or email…" oninput="filterUsers(this.value)"></div>
+      <select class="filter-select" onchange="filterUserRole(this.value)">
+        <option value="all">All Roles</option><option value="admin">Admins only</option><option value="user">Students only</option>
+      </select>
+    </div>
+    <div class="users-grid" id="users-grid">${cards}</div>`;
+}
+
+function filterUsers(q){
+  const f=allUsers.filter(u=>u.username.toLowerCase().includes(q.toLowerCase())||u.email.toLowerCase().includes(q.toLowerCase()));
+  redrawUserCards(f);
+}
+function filterUserRole(r){
+  const f=r==="all"?allUsers:allUsers.filter(u=>u.role===r);
+  redrawUserCards(f);
+}
+function redrawUserCards(users){
+  const colors=["#f0900d","#14b8a6","#60a5fa","#f43f5e","#a78bfa","#fbbf24"];
+  document.getElementById("users-grid").innerHTML=users.map((u,i)=>{
+    const col=colors[i%colors.length];
+    const rb=u.role==="admin"?`<span class="badge badge-orange">👑 Admin</span>`:`<span class="badge badge-blue">👤 Student</span>`;
+    return `<div class="user-card"><div class="user-card-top"><div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div><div><div class="user-card-name">${u.username}</div><div class="user-card-email">${u.email}</div></div></div><div class="user-card-footer">${rb}<button class="btn btn-ghost btn-sm" onclick="toggleRole(${u.id},'${u.role}','${u.username}')">🔄 Change</button></div></div>`;
+  }).join("");
+}
+
+function toggleRole(id,currentRole,name){
+  const newRole=currentRole==="admin"?"user":"admin";
+  modal(`<div class="modal-header"><h2>🔄 Change Role</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:40px;margin-bottom:12px">${newRole==="admin"?"👑":"👤"}</div>
+      <p style="font-size:14px;line-height:1.7;color:var(--cream2)">Change <strong style="color:var(--saffron)">${name}</strong>'s role to <strong>${newRole==="admin"?"👑 Admin":"👤 Student"}</strong>?</p>
+      ${newRole==="admin"?`<p style="font-size:12px;color:var(--yellow);margin-top:10px">⚠️ This gives full admin access to this panel.</p>`:`<p style="font-size:12px;color:var(--muted);margin-top:10px">They will lose admin access and become a regular student.</p>`}
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="confirmToggleRole(${id},'${newRole}')">Confirm Change</button></div>`);
+}
+
+async function confirmToggleRole(id,newRole){
+  try{
+    const r=await fetch(`${API}/admin/users/${id}/role`,{method:"PATCH",headers:H(),body:JSON.stringify({role:newRole})});
+    closeModal();
+    if(r.ok){toast(`Role updated to ${newRole} ✓`);loadUsers();}else toast("Failed to update role","error");
+  }catch(e){toast("Error","error")}
+}
+
+// ── AUDIT LOGS ──
+async function loadAudit(){
+  document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">⏳</div><p>Loading audit logs...</p></div>`;
+  try{
+    const res=await fetch(`${API}/admin/audit`,{headers:H()});
+    const logs=await res.json();
+    let rows=logs.map(l=>{
+      const a=l.action||"";
+      const icon=a.includes("Added")?"➕":a.includes("Deleted")?"🗑️":a.includes("Changed")?"🔄":"📝";
+      const cls=a.includes("Deleted")?"badge-red":a.includes("Added")?"badge-green":a.includes("Changed")?"badge-yellow":"badge-blue";
+      const type=a.includes("Added")?"Create":a.includes("Deleted")?"Delete":a.includes("Changed")?"Update":"Action";
+      return `<tr>
+        <td style="width:36px;font-size:16px;text-align:center">${icon}</td>
+        <td><span style="font-weight:500">${l.user_email}</span></td>
+        <td>${l.action}</td>
+        <td><span class="badge ${cls}">${type}</span></td>
+        <td style="font-size:11px;color:var(--muted);white-space:nowrap;font-family:'JetBrains Mono',monospace">${new Date(l.timestamp).toLocaleString('en-IN')}</td>
+      </tr>`;
+    }).join("");
+
+    document.getElementById("content").innerHTML=`
+      <div class="section-hdr"><h2>📋 Audit Logs <span class="count">Last 50 actions</span></h2></div>
+      <div class="info-box"><span class="info-icon">🔒</span><span>Every admin action is logged here for security and accountability. Helps track who changed what and when.</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th></th><th>Admin</th><th>Action</th><th>Type</th><th>Date & Time</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="5"><div class="empty"><div class="empty-icon">📋</div><h3>No Logs Yet</h3><p>Admin actions will appear here.</p></div></td></tr>'}</tbody>
+      </table></div>`;
+  }catch(e){toast("Failed to load logs","error")}
+}
+
+// ── HELP & GUIDE ──
+function loadHelp(){
+  document.getElementById("content").innerHTML=`
+    <div class="section-hdr"><h2>❓ Help & Guide</h2></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+      <div class="panel"><div class="panel-title">🧠 How the Chatbot Works</div><p style="font-size:13px;color:var(--cream2);line-height:1.8">The chatbot matches student questions to the <strong>keywords</strong> you define in the Knowledge Base. When matched, it sends the saved <strong>Response</strong> back.<br><br><strong>No match?</strong> The query is saved as a "Failed Query" — review and add it as a new FAQ.</p></div>
+      <div class="panel"><div class="panel-title">➕ Adding a Good FAQ</div><p style="font-size:13px;color:var(--cream2);line-height:1.8"><strong>Keywords tip:</strong> Think of all ways a student might ask the same thing. Example: <em>fees, tuition fee, how much fees, semester fee, fee structure</em>.<br><br><strong>Response tip:</strong> Be clear and complete. Include relevant numbers, links, or steps.</p></div>
+      <div class="panel"><div class="panel-title">⚠️ Fixing Failed Queries</div><p style="font-size:13px;color:var(--cream2);line-height:1.8">Go to <strong>Failed Queries</strong> to see unanswered questions. Sort by frequency — high-frequency ones are most urgent.<br><br>Click <strong>"Add as FAQ"</strong> to instantly turn any failed query into a chatbot answer.</p></div>
+      <div class="panel"><div class="panel-title">👥 User Roles</div><p style="font-size:13px;color:var(--cream2);line-height:1.8"><strong>👑 Admin</strong> — Full access to this admin panel. Can manage FAQs, users, view logs.<br><br><strong>👤 Student</strong> — Can only access the chat. Cannot see the admin panel.<br><br>Change roles from the <strong>Users</strong> section.</p></div>
+      <div class="panel"><div class="panel-title">📋 Audit Logs</div><p style="font-size:13px;color:var(--cream2);line-height:1.8">Every change you make (adding/deleting FAQs, changing roles) is recorded with a timestamp. Useful for tracking changes and maintaining accountability across admins.</p></div>
+      <div class="panel"><div class="panel-title">💡 Quick Tips</div><ul style="font-size:13px;color:var(--cream2);line-height:2;padding-left:18px"><li>Add FAQs for the most common student questions first</li><li>Check Failed Queries weekly to keep improving</li><li>Use search to quickly find and edit any FAQ</li><li>Only give Admin role to trusted staff</li><li>More keywords per FAQ = better matching</li></ul></div>
+    </div>`;
+}
+
+// Boot
+goto("dashboard");
+</script>
+</body>
+</html>
