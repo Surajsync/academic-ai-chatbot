@@ -26,4 +26,5 @@ typing_extensions==4.15.0
 uvicorn==0.41.0
 pydantic-settings==2.3.0
 numpy==2.3.0
+sentence-transformers==3.0.1
 #force rebuild
