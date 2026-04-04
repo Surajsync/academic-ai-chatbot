@@ -196,7 +196,7 @@ body{
       <div class="logo-block">
         <div class="logo-ring">
           <div class="logo-img">
-            <img src="/logo.png" alt="REC Bijnor">
+            <img src="/static/Images/logo.png" alt="REC Bijnor">
           </div>
         </div>
         <div class="college-name">
@@ -208,6 +208,7 @@ body{
       <div class="auth-tabs">
         <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
         <button class="tab-btn" onclick="switchTab('register')">Register</button>
+        <button class="tab-btn" onclick="switchTab('forgot')" id="forgotTabBtn" style="display:none;">Reset Password</button>
       </div>
 
       <!-- LOGIN -->
@@ -222,7 +223,11 @@ body{
         </div>
         <div class="err" id="liErr">Incorrect ID or password. Try demo / demo123.</div>
         <button class="btn-submit" onclick="doLogin()">Sign In →</button>
-        <p style="text-align:center;margin-top:14px;font-size:12px;color:var(--muted)">
+        <p style="text-align:center;margin-top:14px;font-size:12px;">
+          <span style="color:var(--muted);">Forgot password?</span>
+          <span style="color:var(--saffron);cursor:pointer;" onclick="switchTab('forgot')">Reset here</span>
+        </p>
+        <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--muted)">
           Note: <span style="color:var(--saffron);font-family:monospace">Your chat may be used for feedback and improvement.</span>
         </p>
       </div>
@@ -273,6 +278,25 @@ body{
         </p>
       </div>
 
+      <!-- FORGOT PASSWORD -->
+      <div class="form-panel" id="forgotPanel">
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="font-size:32px;margin-bottom:10px;">🔑</div>
+          <p style="font-size:13px;color:var(--muted);line-height:1.6;">
+            Enter your email address and we'll send you a link to reset your password.
+          </p>
+        </div>
+        <div class="field">
+          <label>College / Faculty Email</label>
+          <input type="email" id="forgotEmail" placeholder="e.g. xyz@recb.ac.in" autocomplete="email" onkeydown="if(event.key==='Enter')sendPasswordReset()">
+        </div>
+        <div class="err" id="forgotErr">Please enter a valid email address.</div>
+        <button class="btn-submit" onclick="sendPasswordReset()">Send Reset Link →</button>
+        <p style="text-align:center;margin-top:14px;font-size:12px;">
+          <span style="color:var(--muted);cursor:pointer;" onclick="switchTab('login')">← Back to Sign In</span>
+        </p>
+      </div>
+
     </div>
   </div>
 </div>
@@ -294,9 +318,13 @@ function switchTab(tab) {
   if (tab === "login") {
     document.querySelectorAll(".tab-btn")[0].classList.add("active");
     document.getElementById("loginPanel").classList.add("active");
-  } else {
+  } else if (tab === "register") {
     document.querySelectorAll(".tab-btn")[1].classList.add("active");
     document.getElementById("regPanel").classList.add("active");
+  } else if (tab === "forgot") {
+    document.querySelectorAll(".tab-btn")[0].classList.remove("active");
+    document.getElementById("forgotTabBtn").classList.add("active");
+    document.getElementById("forgotPanel").classList.add("active");
   }
 }
 
@@ -324,12 +352,18 @@ async function doLogin() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Login failed");
 
-    localStorage.clear();
+    // Clear only auth-related items, preserve conversations
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("username");
+    localStorage.removeItem("role");
+    localStorage.removeItem("currentConversationId");
+    
+    // Set new auth data
     localStorage.setItem("access_token", data.access_token);
     localStorage.setItem("username",     data.username);
     localStorage.setItem("role",         data.role);
 
-    window.location.href = data.role === "admin" ? "admin_ui.html" : "chat_ui.html";
+    window.location.href = data.role === "admin" ? "/admin_ui.html" : "/chat_ui.html";
 
   } catch (err) {
     errBox.textContent = err.message;
@@ -471,6 +505,39 @@ function startResendTimer(seconds) {
       timer.textContent = `Resend in ${s}s`;
     }
   }, 1000);
+}
+
+/* ─── FORGOT PASSWORD ─── */
+async function sendPasswordReset() {
+  const email  = document.getElementById("forgotEmail").value.trim();
+  const errBox = document.getElementById("forgotErr");
+
+  if (!email || !email.includes("@")) {
+    errBox.textContent = "Please enter a valid email address.";
+    errBox.style.display = "block";
+    return;
+  }
+
+  errBox.style.display = "none";
+
+  try {
+    const res  = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Could not process request");
+
+    // Show success message and reset form
+    showSuccess("Reset link sent to your email! Check your inbox.");
+    document.getElementById("forgotEmail").value = "";
+    setTimeout(() => switchTab("login"), 2000);
+
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = "block";
+  }
 }
 
 /* ─── SUCCESS TOAST ─── */

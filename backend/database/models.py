@@ -25,10 +25,11 @@ class FAQ(Base):
     __tablename__ = "faqs"
 
     id = Column(Integer, primary_key=True, index=True)
-    keyword = Column(String)
-    response = Column(Text)
+    question = Column(Text)
+    answer = Column(Text)
+    keywords = Column(Text)
+    embedding = Column(Text) 
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 # ================= CONVERSATIONS =================
@@ -100,3 +101,57 @@ class PasswordResetToken(Base):
     expires_at = Column(DateTime)
     used       = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+#================= COLLEGE INFO =================
+class Department(Base):
+    __tablename__ = "departments"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), unique=True)
+    hod = Column(String(100))
+
+#================= FEE STRUCTURE =================
+class FeeStructure(Base):
+    __tablename__ = "fee_structures"
+
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer)
+    amount = Column(Integer)
+    branch = Column(String(50))
+
+
+#================= CLUBS =================
+class Club(Base):
+    __tablename__ = "clubs"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), unique=True)
+    category = Column(String(50))
+    description = Column(Text)
+
+
+#================= PLACEMENTS =================
+class Placement(Base):
+    __tablename__ = "placements"
+
+    id = Column(Integer, primary_key=True)
+    student_name = Column(String(100))
+    branch = Column(String(50))
+    company_name = Column(String(100))
+    package_lpa = Column(String(20), nullable=True)
+    placement_year = Column(String(20))
+
+
+#================= SCHOLARSHIP CELL =================
+class ScholarshipCell(Base):
+    __tablename__ = "scholarship_cells"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100))
+    designation = Column(String(100))
+    category = Column(String(100), nullable=True)
+    contact_no = Column(String(20))
+    email = Column(String(100), nullable=True)
+
+
+print("FAQ MODEL LOADED")
