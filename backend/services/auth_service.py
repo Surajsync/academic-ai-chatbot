@@ -1,12 +1,13 @@
 from sqlalchemy.orm import Session
-from database.models import User
-from security.security import hash_password, verify_password
+from backend.database.models import User
+from backend.security.security import hash_password, verify_password
 from jose import jwt
 from datetime import datetime, timedelta
+from backend.config import settings
 
-SECRET_KEY = "secret_key_for_jwt_token_generation"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 def create_access_token(data: dict):

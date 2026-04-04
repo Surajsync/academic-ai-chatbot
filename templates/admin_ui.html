@@ -72,6 +72,8 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--cream);displ
 .section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .section-hdr h2{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .count{font-size:12px;color:var(--muted);font-weight:400}
+.viewer-role-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--cream2);white-space:nowrap;max-width:max-content;margin-left:auto}
+.viewer-role-chip.main{border-color:rgba(251,191,36,0.35);background:rgba(251,191,36,0.12);color:var(--yellow)}
 
 .btn{padding:8px 16px;border-radius:8px;border:none;font-family:'Sora';font-size:12px;font-weight:500;cursor:pointer;transition:all 0.18s;display:inline-flex;align-items:center;gap:6px}
 .btn-primary{background:var(--saffron);color:#fff}
@@ -148,6 +150,10 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 .dash-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
 .panel{background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:20px}
 .panel-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:16px}
+.status-lines{display:grid;gap:8px}
+.status-line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border:1px solid var(--border2);border-radius:10px;background:rgba(255,255,255,0.02)}
+.status-key{font-size:12px;color:var(--cream2)}
+.status-val{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted)}
 .quick-action{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.025);border:1px solid var(--border2);cursor:pointer;transition:all 0.18s;margin-bottom:8px;text-align:left;width:100%}
 .quick-action:hover{background:var(--saf-dim);border-color:var(--border);transform:translateX(4px)}
 .qa-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
@@ -172,9 +178,25 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 .user-card:hover{border-color:var(--border);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
 .user-card-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .user-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0}
+.user-name-line{display:flex;align-items:center;gap:8px}
 .user-card-name{font-size:13px;font-weight:600}
 .user-card-email{font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
-.user-card-footer{display:flex;align-items:center;justify-content:space-between}
+.name-badge-main{font-size:9px;letter-spacing:.8px;padding:2px 7px;border-radius:999px;border:1px solid rgba(251,191,36,0.28);background:rgba(251,191,36,0.12);color:var(--yellow);font-weight:700}
+.user-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.user-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.user-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.user-actions .btn{width:100%;justify-content:center}
+.btn-role{background:rgba(96,165,250,0.08);color:var(--blue);border:1px solid rgba(96,165,250,0.22)}
+.btn-role:hover{background:rgba(96,165,250,0.16)}
+.btn-lock{background:rgba(244,63,94,0.1);color:#ff8ea1;border:1px solid rgba(244,63,94,0.25)}
+.btn-lock:hover{background:rgba(244,63,94,0.2)}
+.btn-unlock{background:rgba(16,217,160,0.12);color:var(--green);border:1px solid rgba(16,217,160,0.25)}
+.btn-unlock:hover{background:rgba(16,217,160,0.22)}
+.btn-muted{background:rgba(255,255,255,0.04);color:var(--muted2);border:1px solid var(--border2);cursor:not-allowed;opacity:0.75}
+
+@media(max-width:500px){
+  .user-actions{grid-template-columns:1fr}
+}
 
 .info-box{background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--blue);line-height:1.6;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
 .info-icon{font-size:15px;margin-top:1px;flex-shrink:0}
@@ -188,7 +210,7 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 
 <div class="sidebar">
   <div class="sidebar-logo">
-    <img src="/logo.png" alt="REC">
+    <img src="/static/Images/logo.png" alt="REC" onerror="handleLogoError(this)">
     <div class="brand">REC Bijnor</div>
     <div class="sub-label">Admin Panel</div>
   </div>
@@ -227,15 +249,24 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script>
+function handleLogoError(img){
+  const candidates = ["/static/Images/logo.png", "/logo.png", "static/Images/logo.png", "../static/Images/logo.png"];
+  const current = img.getAttribute("src") || "";
+  const idx = candidates.indexOf(current);
+  const next = idx >= 0 ? candidates[idx + 1] : candidates[0];
+  if (next) img.src = next;
+}
+
 const API   = "http://127.0.0.1:8000";
 const token = localStorage.getItem("access_token");
 const uname = localStorage.getItem("username") || "Admin";
-if (!token) location.href = "auth_ui.html";
+if (!token) location.href = "/auth_ui.html";
 document.getElementById("admin-name").textContent = uname;
 document.getElementById("admin-av").textContent   = uname.charAt(0).toUpperCase();
 setInterval(()=>{ document.getElementById("clock").textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); },1000);
 
 let allFaqs=[], allUsers=[], currentPage=1, faqsPerPage=15;
+let userSearchQuery="", userRoleFilter="all";
 function H(){return{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"}}
 
 function goto(page){
@@ -267,22 +298,28 @@ function modal(html){
   setTimeout(()=>o.querySelector("input,textarea")?.focus(),100);
 }
 function closeModal(){document.getElementById("modal-overlay")?.remove()}
-function doLogout(){localStorage.clear();location.href="auth_ui.html"}
+function doLogout(){localStorage.clear();location.href="/auth_ui.html"}
 
 // ── DASHBOARD ──
 async function loadDashboard(){
   document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">⏳</div><p>Loading dashboard...</p></div>`;
   try{
-    const [dRes,fRes,uRes]=await Promise.all([
+    const [dRes,fRes,uRes,aiRes]=await Promise.all([
       fetch(`${API}/admin/dashboard`,{headers:H()}),
       fetch(`${API}/admin/failed`,{headers:H()}),
-      fetch(`${API}/admin/users`,{headers:H()}).catch(()=>({ok:false}))
+      fetch(`${API}/admin/users`,{headers:H()}).catch(()=>({ok:false})),
+      fetch(`${API}/admin/ai-status`,{headers:H()}).catch(()=>({ok:false}))
     ]);
     if(dRes.status===403){toast("Session expired","error");doLogout();return}
     const d=await dRes.json();
     const failed=fRes.ok?await fRes.json():[];
     const users=uRes.ok?await uRes.json():[];
+    const ai = aiRes.ok ? await aiRes.json() : {enabled:false, model:"n/a", api_key_configured:false};
+    const blockedUsers=users.filter(u=>!u.is_active).length;
     const highFreq=failed.filter(f=>f.frequency>=3).length;
+    const aiReady = !!(ai.enabled && ai.api_key_configured);
+    const aiState = aiReady ? "Ready" : (ai.enabled ? "Missing API Key" : "Disabled");
+    const aiStateClass = aiReady ? "badge-green" : (ai.enabled ? "badge-yellow" : "badge-red");
     if(highFreq>0){document.getElementById("failed-badge").textContent=highFreq;document.getElementById("failed-badge").style.display="inline"}
     const coveragePct=d.total_faqs>0?Math.round((d.active_faqs/d.total_faqs)*100):0;
 
@@ -294,11 +331,11 @@ async function loadDashboard(){
           <div class="stat-value">${d.total_faqs??0}</div>
           <div class="stat-sub">${d.active_faqs??0} active · ${(d.total_faqs??0)-(d.active_faqs??0)} inactive</div>
         </div>
-        <div class="stat-card c2">
+        <div class="stat-card c2" onclick="goto('users')">
           <div class="bar"></div>
-          <div class="stat-top"><div class="stat-label">Conversations</div><div class="stat-icon">💬</div></div>
-          <div class="stat-value">${d.total_conversations??0}</div>
-          <div class="stat-sub">All-time student chats</div>
+          <div class="stat-top"><div class="stat-label">Blocked Users</div><div class="stat-icon">🔒</div></div>
+          <div class="stat-value">${blockedUsers}</div>
+          <div class="stat-sub">Require admin unblock</div>
         </div>
         <div class="stat-card c3" onclick="goto('users')">
           <div class="bar"></div>
@@ -329,6 +366,14 @@ async function loadDashboard(){
           <div style="margin-top:20px"><canvas id="convChart" height="140"></canvas></div>
         </div>
         <div class="panel">
+          <div class="panel-title">🤖 AI Layer Status</div>
+          <div class="status-lines">
+            <div class="status-line"><span class="status-key">State</span><span class="badge ${aiStateClass}">${aiState}</span></div>
+            <div class="status-line"><span class="status-key">Enabled</span><span class="status-val">${ai.enabled ? 'true' : 'false'}</span></div>
+            <div class="status-line"><span class="status-key">Model</span><span class="status-val">${ai.model || 'n/a'}</span></div>
+            <div class="status-line"><span class="status-key">API Key</span><span class="status-val">${ai.api_key_configured ? 'configured' : 'missing'}</span></div>
+          </div>
+          <div style="height:14px"></div>
           <div class="panel-title">⚡ Quick Actions</div>
           <button class="quick-action" onclick="goto('faqs');setTimeout(openAddFAQ,400)">
             <div class="qa-icon" style="background:rgba(240,144,13,0.15)">➕</div>
@@ -487,7 +532,7 @@ async function loadFailed(){
         <td><span class="badge ${cls}">${f.frequency}×</span></td>
         <td>${lbl}</td>
         <td style="color:var(--muted);font-size:11px;white-space:nowrap;font-family:'JetBrains Mono',monospace">${f.created_at?new Date(f.created_at).toLocaleDateString():'-'}</td>
-        <td><button class="btn btn-success btn-sm" onclick="convertToFAQ('${safe}')">➕ Add as FAQ</button></td>
+        <td style="display:flex;gap:6px"><button class="btn btn-success btn-sm" onclick="convertToFAQ('${safe}')">➕ Add as FAQ</button><button class="btn btn-danger btn-sm" onclick="deleteFailedQuery(${f.id},'${safe}')">🗑️ Delete</button></td>
       </tr>`;
     }).join("");
 
@@ -503,7 +548,7 @@ async function loadFailed(){
 }
 
 function convertToFAQ(queryText){
-  modal(`<div class="modal-header"><h2>➕ Convert to FAQ</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+  modal(`<div class="modal-header"><h2>➕ Add to Knowledge Base</h2><button class="modal-close" onclick="closeModal()">×</button></div>
     <div class="info-box"><span class="info-icon">💡</span><span>Edit the keywords to add more variations, then write the answer the chatbot should give.</span></div>
     <div class="field"><label>Keywords</label><input type="text" id="m-kw" value="${queryText.replace(/"/g,'&quot;')}"><div class="hint">Add more keywords separated by commas</div></div>
     <div class="field"><label>Chatbot Response *</label><textarea id="m-res" placeholder="Write the answer the chatbot should give…"></textarea></div>
@@ -511,6 +556,24 @@ function convertToFAQ(queryText){
 }
 
 // ── USERS ──
+
+function deleteFailedQuery(queryId, queryText){
+  modal(`<div class="modal-header"><h2>🗑️ Delete Failed Query</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="warn-box"><span class="info-icon">⚠️</span><span>This failed query record will be deleted from the system. You can still view the chatbot's history, but this query will no longer appear in the failed queries list.</span></div>
+    <div style="background:var(--card);padding:12px;border-radius:8px;margin:12px 0;border-left:3px solid var(--muted)"><strong>Query:</strong> "${queryText}"</div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="confirmDeleteFailedQuery(${queryId})">Yes, Delete</button></div>`);
+}
+
+async function confirmDeleteFailedQuery(queryId){
+  try{
+    const res=await fetch(`${API}/admin/failed/${queryId}`,{method:"DELETE",headers:H()});
+    if(!res.ok) throw new Error("Failed to delete");
+    closeModal();
+    toast("Failed query deleted ✓","success");
+    loadFailed();
+  }catch(e){toast("Delete failed: "+e.message,"error")}
+}
+
 async function loadUsers(){
   document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">⏳</div><p>Loading users...</p></div>`;
   try{
@@ -520,51 +583,127 @@ async function loadUsers(){
   }catch(e){toast("Failed to load users","error")}
 }
 
+
 function renderUsers(users){
   const colors=["#f0900d","#14b8a6","#60a5fa","#f43f5e","#a78bfa","#fbbf24"];
   const admins=users.filter(u=>u.role==="admin");
+  const blocked=users.filter(u=>!u.is_active);
+  const mainAdmin=admins.slice().sort((a,b)=>a.id-b.id)[0]||null;
+  const currentAdmin=admins.find(u=>u.username===uname)||null;
+  const isCurrentMainAdmin=Boolean(mainAdmin&&currentAdmin&&mainAdmin.id===currentAdmin.id);
+  const viewerChipClass=isCurrentMainAdmin?"viewer-role-chip main":"viewer-role-chip";
+  const viewerChipText=isCurrentMainAdmin?"⭐ Main Admin Session":"👑 Admin Session";
   let cards=users.map((u,i)=>{
     const col=colors[i%colors.length];
+    const safeName=String(u.username).replace(/'/g,"\\'");
+    const isSelfAdmin=Boolean(currentAdmin&&u.id===currentAdmin.id);
+    const isMainAdminAccount=Boolean(mainAdmin&&u.id===mainAdmin.id);
+    const lockedAdminControls=u.role==="admin"&&!isCurrentMainAdmin&&!isSelfAdmin;
+    const mainMarker=isMainAdminAccount?`<span class="name-badge-main">MAIN</span>`:"";
     const rb=u.role==="admin"?`<span class="badge badge-orange">👑 Admin</span>`:`<span class="badge badge-blue">👤 Student</span>`;
+    const pb=lockedAdminControls?`<span class="badge badge-yellow">🔒 Protected</span>`:"";
+    const sb=u.is_active
+      ? `<span class="badge badge-green">✅ Active</span>`
+      : `<span class="badge badge-red">⛔ Blocked</span>`;
+    const blockBtn=lockedAdminControls
+      ? `<button class="btn btn-sm btn-muted" disabled title="Only main admin can block admin accounts">Block Locked</button>`
+      : (u.is_active
+        ? `<button class="btn btn-sm btn-lock" onclick="toggleBlock(${u.id},true,'${safeName}')">Block</button>`
+        : `<button class="btn btn-sm btn-unlock" onclick="toggleBlock(${u.id},false,'${safeName}')">Unblock</button>`);
+    const roleBtn=lockedAdminControls
+      ? `<button class="btn btn-sm btn-muted" disabled title="Only main admin can change other admin roles">Role Locked</button>`
+      : `<button class="btn btn-sm btn-role" onclick="toggleRole(${u.id},'${u.role}','${safeName}')">Change Role</button>`;
     return `<div class="user-card">
       <div class="user-card-top">
         <div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div>
-        <div><div class="user-card-name">${u.username}</div><div class="user-card-email" title="${u.email}">${u.email}</div></div>
+        <div><div class="user-name-line"><div class="user-card-name">${u.username}</div>${mainMarker}</div><div class="user-card-email" title="${u.email}">${u.email}</div></div>
       </div>
-      <div class="user-card-footer">${rb}<button class="btn btn-ghost btn-sm" onclick="toggleRole(${u.id},'${u.role}','${u.username}')">🔄 Change Role</button></div>
+      <div class="user-meta">${rb}${pb}${sb}</div>
+      <div class="user-card-footer">
+        <div class="user-actions">${roleBtn}${blockBtn}</div>
+      </div>
     </div>`;
   }).join("");
 
   document.getElementById("content").innerHTML=`
-    <div class="section-hdr"><h2>👥 Users <span class="count">${users.length} total</span></h2></div>
+    <div class="section-hdr">
+      <h2>👥 Users <span class="count">${users.length} total</span></h2>
+      <span class="${viewerChipClass}">${viewerChipText}</span>
+    </div>
     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <div class="stat-card c1" style="flex:1;min-width:120px;padding:14px"><div class="bar"></div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Admins</div><div style="font-size:28px;font-weight:700;margin-top:4px">${admins.length}</div></div>
       <div class="stat-card c3" style="flex:1;min-width:120px;padding:14px"><div class="bar"></div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Students</div><div style="font-size:28px;font-weight:700;margin-top:4px">${users.length-admins.length}</div></div>
       <div class="stat-card c2" style="flex:1;min-width:120px;padding:14px"><div class="bar"></div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Total</div><div style="font-size:28px;font-weight:700;margin-top:4px">${users.length}</div></div>
+      <div class="stat-card" style="flex:1;min-width:120px;padding:14px"><div class="bar"></div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Blocked</div><div style="font-size:28px;font-weight:700;margin-top:4px;color:var(--red)">${blocked.length}</div></div>
     </div>
     <div class="toolbar">
       <div class="search-wrap"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search by name or email…" oninput="filterUsers(this.value)"></div>
       <select class="filter-select" onchange="filterUserRole(this.value)">
-        <option value="all">All Roles</option><option value="admin">Admins only</option><option value="user">Students only</option>
+        <option value="all">All Users</option>
+        <option value="admin">Admins only</option>
+        <option value="user">Students only</option>
+        <option value="blocked">Blocked only</option>
+        <option value="protected-admin">Protected admins only</option>
       </select>
     </div>
     <div class="users-grid" id="users-grid">${cards}</div>`;
 }
 
 function filterUsers(q){
-  const f=allUsers.filter(u=>u.username.toLowerCase().includes(q.toLowerCase())||u.email.toLowerCase().includes(q.toLowerCase()));
-  redrawUserCards(f);
+  userSearchQuery=q||"";
+  applyUserFilters();
 }
 function filterUserRole(r){
-  const f=r==="all"?allUsers:allUsers.filter(u=>u.role===r);
-  redrawUserCards(f);
+  userRoleFilter=r||"all";
+  applyUserFilters();
+}
+
+function applyUserFilters(){
+  const q=userSearchQuery.toLowerCase();
+  const admins=allUsers.filter(u=>u.role==="admin");
+  const mainAdmin=admins.slice().sort((a,b)=>a.id-b.id)[0]||null;
+  const currentAdmin=admins.find(u=>u.username===uname)||null;
+  const isCurrentMainAdmin=Boolean(mainAdmin&&currentAdmin&&mainAdmin.id===currentAdmin.id);
+  let filtered=allUsers.filter(u=>
+    u.username.toLowerCase().includes(q)||u.email.toLowerCase().includes(q)
+  );
+
+  if(userRoleFilter==="admin") filtered=filtered.filter(u=>u.role==="admin");
+  if(userRoleFilter==="user") filtered=filtered.filter(u=>u.role==="user");
+  if(userRoleFilter==="blocked") filtered=filtered.filter(u=>!u.is_active);
+  if(userRoleFilter==="protected-admin") {
+    filtered=filtered.filter(u=>u.role==="admin"&&!isCurrentMainAdmin&&(!currentAdmin||u.id!==currentAdmin.id));
+  }
+
+  redrawUserCards(filtered);
 }
 function redrawUserCards(users){
   const colors=["#f0900d","#14b8a6","#60a5fa","#f43f5e","#a78bfa","#fbbf24"];
+  const admins=allUsers.filter(u=>u.role==="admin");
+  const mainAdmin=admins.slice().sort((a,b)=>a.id-b.id)[0]||null;
+  const currentAdmin=admins.find(u=>u.username===uname)||null;
+  const isCurrentMainAdmin=Boolean(mainAdmin&&currentAdmin&&mainAdmin.id===currentAdmin.id);
   document.getElementById("users-grid").innerHTML=users.map((u,i)=>{
     const col=colors[i%colors.length];
+    const safeName=String(u.username).replace(/'/g,"\\'");
+    const isSelfAdmin=Boolean(currentAdmin&&u.id===currentAdmin.id);
+    const isMainAdminAccount=Boolean(mainAdmin&&u.id===mainAdmin.id);
+    const lockedAdminControls=u.role==="admin"&&!isCurrentMainAdmin&&!isSelfAdmin;
+    const mainMarker=isMainAdminAccount?`<span class="name-badge-main">MAIN</span>`:"";
     const rb=u.role==="admin"?`<span class="badge badge-orange">👑 Admin</span>`:`<span class="badge badge-blue">👤 Student</span>`;
-    return `<div class="user-card"><div class="user-card-top"><div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div><div><div class="user-card-name">${u.username}</div><div class="user-card-email">${u.email}</div></div></div><div class="user-card-footer">${rb}<button class="btn btn-ghost btn-sm" onclick="toggleRole(${u.id},'${u.role}','${u.username}')">🔄 Change</button></div></div>`;
+    const pb=lockedAdminControls?`<span class="badge badge-yellow">🔒 Protected</span>`:"";
+    const sb=u.is_active
+      ? `<span class="badge badge-green">✅ Active</span>`
+      : `<span class="badge badge-red">⛔ Blocked</span>`;
+    const blockBtn=lockedAdminControls
+      ? `<button class="btn btn-sm btn-muted" disabled title="Only main admin can block admin accounts">Block Locked</button>`
+      : (u.is_active
+        ? `<button class="btn btn-sm btn-lock" onclick="toggleBlock(${u.id},true,'${safeName}')">Block</button>`
+        : `<button class="btn btn-sm btn-unlock" onclick="toggleBlock(${u.id},false,'${safeName}')">Unblock</button>`);
+    const roleBtn=lockedAdminControls
+      ? `<button class="btn btn-sm btn-muted" disabled title="Only main admin can change other admin roles">Role Locked</button>`
+      : `<button class="btn btn-sm btn-role" onclick="toggleRole(${u.id},'${u.role}','${safeName}')">Change Role</button>`;
+    return `<div class="user-card"><div class="user-card-top"><div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div><div><div class="user-name-line"><div class="user-card-name">${u.username}</div>${mainMarker}</div><div class="user-card-email">${u.email}</div></div></div><div class="user-meta">${rb}${pb}${sb}</div><div class="user-card-footer"><div class="user-actions">${roleBtn}${blockBtn}</div></div></div>`;
   }).join("");
 }
 
@@ -583,8 +722,40 @@ async function confirmToggleRole(id,newRole){
   try{
     const r=await fetch(`${API}/admin/users/${id}/role`,{method:"PATCH",headers:H(),body:JSON.stringify({role:newRole})});
     closeModal();
-    if(r.ok){toast(`Role updated to ${newRole} ✓`);loadUsers();}else toast("Failed to update role","error");
+    if(r.ok){toast(`Role updated to ${newRole} ✓`);loadUsers();return;}
+    const data=await r.json().catch(()=>({}));
+    toast(data.detail||"Failed to update role","error");
   }catch(e){toast("Error","error")}
+}
+
+function toggleBlock(id,isCurrentlyActive,name){
+  const action=isCurrentlyActive?"Block":"Unblock";
+  const icon=isCurrentlyActive?"🔒":"✅";
+  const note=isCurrentlyActive
+    ? "Blocked users cannot log in until you unblock them."
+    : "This user will be able to log in again.";
+
+  modal(`<div class="modal-header"><h2>${icon} ${action} User</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:40px;margin-bottom:12px">${icon}</div>
+      <p style="font-size:14px;line-height:1.7;color:var(--cream2)">${action} <strong style="color:var(--saffron)">${name}</strong>?</p>
+      <p style="font-size:12px;color:var(--muted);margin-top:10px">${note}</p>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn ${isCurrentlyActive?"btn-danger":"btn-primary"}" onclick="confirmToggleBlock(${id},${!isCurrentlyActive})">${action}</button></div>`);
+}
+
+async function confirmToggleBlock(id,isActive){
+  try{
+    const r=await fetch(`${API}/admin/users/${id}/status`,{method:"PATCH",headers:H(),body:JSON.stringify({is_active:isActive})});
+    closeModal();
+    if(r.ok){
+      toast(`User ${isActive?"unblocked":"blocked"} ✓`);
+      loadUsers();
+      return;
+    }
+    const data=await r.json().catch(()=>({}));
+    toast(data.detail||"Failed to update status","error");
+  }catch(e){toast("Error updating user status","error")}
 }
 
 // ── AUDIT LOGS ──

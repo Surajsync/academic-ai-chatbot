@@ -1,27 +1,29 @@
-import pandas as pd
-from database.database import SessionLocal
-from database.models import FAQ   
+import json
+from pathlib import Path
+from backend.database.database import SessionLocal
+from backend.database.models import FAQ
 
-# Read CSV
-df = pd.read_csv("chatbot_data1.csv")
+def seed_faq():
+    db = SessionLocal()
+    BASE_DIR= Path(__file__).resolve().parents[2]
+    file_path = BASE_DIR / "data" / "faq_with_embeddings.json"
 
-# Clean column names (important!)
-df.columns = df.columns.str.strip()
+    with open(file_path, "r") as f:
+        faqs = json.load(f)
 
-db = SessionLocal()
+        for item in faqs:
+            db_faq = FAQ(
+                question=item.get("question"),
+                answer=item.get("answer"),
+                keywords=item.get("keywords"),
+                embedding=json.dumps(item.get("embedding")),  # Store as JSON string
+                is_active=True
+            )
+            db.add(db_faq)
 
-count = 0
+    db.commit()
+    db.close()
 
-for _, row in df.iterrows():
-    faq = FAQ(
-        keyword=str(row["keyword"]).strip(),
-        response=str(row["response"]).strip(),
-        is_active=True
-    )
-    db.add(faq)
-    count += 1
-
-db.commit()
-db.close()
-
-print(f"Migration completed. {count} rows inserted.")
+    print("FAQ seeding completed!")
+if __name__ == "__main__":
+    seed_faq()

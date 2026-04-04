@@ -1,9 +1,4 @@
-# ================================================================
-#  REC Bijnor Academic AI  —  Main Application
-#  Run from:  chatbot_project/backend/
-#  Command:   uvicorn app:app --reload
-# ================================================================
-
+import os
 import random
 import time
 import secrets
@@ -21,16 +16,22 @@ from sqlalchemy import text
 from pydantic import BaseModel
 from jose import JWTError, jwt
 
-from database.database import SessionLocal, engine
-from database.models import Base, User, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken
-from security.security import hash_password, verify_password
-from services.auth_service import create_access_token
-from services.chatbot_service import generate_reply
-
+from backend.config import settings
+from backend.database.database import SessionLocal, engine
+from backend.database.models import Base, User, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken
+from backend.security.security import hash_password, verify_password
+from backend.services.auth_service import create_access_token
+from backend.services.chatbot_service import generate_reply_with_source
+from backend.services.ai_service import categorize_response, generate_follow_up_suggestions
+from backend.routes import chat_routes
 
 # ================================================================
 #  APP INIT
 # ================================================================
+# print("CREATING TABLES...")
+# Base.metadata.drop_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="REC Bijnor Academic AI")
@@ -43,17 +44,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include API routes from separate modules
+app.include_router(chat_routes.router)
 
 # ================================================================
 #  CONFIG  ← Edit these before running
 # ================================================================
-SECRET_KEY   = "secret_key_for_jwt_token_generation"
-ALGORITHM    = "HS256"
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.JWT_ALGORITHM
 
-GMAIL_ADDRESS           = "suraj.it.22061@recb.ac.in"  
-GMAIL_APP_PASSWORD      = "udru lmqy wdpz jjcs"  
-RESET_TOKEN_EXPIRE_MINS = 15
-APP_BASE_URL            = "http://127.0.0.1:8000"       # ← change to LAN IP for mobile testing
+GMAIL_ADDRESS = settings.GMAIL_ADDRESS
+GMAIL_APP_PASSWORD = settings.GMAIL_APP_PASSWORD
+RESET_TOKEN_EXPIRE_MINS = settings.RESET_TOKEN_EXPIRE_MINS
+APP_BASE_URL = settings.APP_BASE_URL
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -72,6 +75,7 @@ def get_db():
         db.close()
 
 
+print("Database initialized with URL:", settings.DATABASE_URL)
 # ================================================================
 #  AUTH HELPERS
 # ================================================================
@@ -84,6 +88,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         user = db.query(User).filter(User.email == email).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="Your account is blocked. Contact admin.")
         return user
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -93,6 +99,11 @@ def get_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+def get_main_admin(db: Session) -> User | None:
+    """Main admin is the oldest admin account by ID."""
+    return db.query(User).filter(User.role == "admin").order_by(User.id.asc()).first()
 
 
 # ================================================================
@@ -123,9 +134,29 @@ class ResetRequest(BaseModel):
 class RoleUpdate(BaseModel):
     role: str
 
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+
 class FaqCreate(BaseModel):
     keyword: str
     response: str
+
+
+def _faq_keyword_value(faq: FAQ) -> str:
+    return (getattr(faq, "keyword", None) or getattr(faq, "keywords", None) or getattr(faq, "question", None) or "").strip()
+
+
+def _faq_response_value(faq: FAQ) -> str:
+    return (getattr(faq, "response", None) or getattr(faq, "answer", None) or "").strip()
+
+
+def _serialize_faq(faq: FAQ) -> dict:
+    return {
+        "id": faq.id,
+        "keyword": _faq_keyword_value(faq),
+        "response": _faq_response_value(faq),
+        "is_active": bool(getattr(faq, "is_active", True)),
+    }
 
 
 # ================================================================
@@ -134,6 +165,9 @@ class FaqCreate(BaseModel):
 def send_email(to: str, subject: str, body: str):
     """Send email via Gmail SMTP. Raises HTTPException on failure."""
     try:
+        if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
+            raise HTTPException(status_code=500, detail="Email credentials are not configured")
+
         msg = MIMEText(body)
         msg["Subject"] = subject
         msg["From"]    = GMAIL_ADDRESS
@@ -226,6 +260,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Your account is blocked. Contact admin.")
 
     token = create_access_token({"sub": user.email})
     return {
@@ -318,13 +354,25 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
     db.add(Message(conversation_id=conversation.id, role="user", content=request.message))
     db.commit()
 
-    reply = generate_reply(db, request.message)
+    reply, reply_source = generate_reply_with_source(db, request.message)
+    
+    # Categorize the response
+    category = categorize_response(request.message)
+    
+    # Generate follow-up suggestions (only if AI response was successful)
+    suggestions = []
+    if reply_source == "groq":
+        try:
+            from backend.services.ai_service import generate_follow_up_suggestions
+            suggestions = generate_follow_up_suggestions("", request.message, reply)
+        except Exception:
+            pass
 
     db.add(Message(conversation_id=conversation.id, role="bot", content=reply))
     db.commit()
 
     # Track unanswered questions
-    if "Sorry" in reply:
+    if "sorry" in reply.lower() or "not available" in reply.lower() or "don't have" in reply.lower():
         fq = db.query(FailedQuery).filter(FailedQuery.query_text == request.message).first()
         if fq:
             fq.frequency += 1
@@ -332,7 +380,56 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
             db.add(FailedQuery(query_text=request.message))
         db.commit()
 
-    return {"reply": reply}
+    response = {
+        "reply": reply,
+        "category": category,
+        "suggestions": suggestions[:3]
+    }
+    
+    if user.role == "admin":
+        response["debug"] = {
+            "source": reply_source,
+            "category": category
+        }
+    
+    return response
+
+
+# ================================================================
+#  GET CONVERSATION HISTORY
+# ================================================================
+@app.get("/chat/history")
+def get_chat_history(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Fetch all conversations and messages for the current user"""
+    conversations = db.query(Conversation).filter(Conversation.user_id == user.id).order_by(Conversation.created_at.desc()).all()
+    
+    result = []
+    for conv in conversations:
+        messages = db.query(Message).filter(Message.conversation_id == conv.id).order_by(Message.timestamp.asc()).all()
+        
+        # Extract conversation title from first user message
+        title = "New Chat"
+        if messages:
+            for msg in messages:
+                if msg.role == "user":
+                    title = msg.content[:50]  # First 50 chars of first user message
+                    break
+        
+        result.append({
+            "id": str(conv.id),
+            "title": title,
+            "created_at": conv.created_at.isoformat(),
+            "messages": [
+                {
+                    "role": msg.role,
+                    "text": msg.content,
+                    "timestamp": msg.timestamp.isoformat()
+                }
+                for msg in messages
+            ]
+        })
+    
+    return result
 
 
 # ================================================================
@@ -348,17 +445,56 @@ def dashboard(db: Session = Depends(get_db), admin: User = Depends(get_admin)):
     }
 
 
+@app.get("/admin/ai-status")
+def ai_status(admin: User = Depends(get_admin)):
+    """Admin-only endpoint to quickly verify AI layer configuration."""
+    if settings.GROQ_API_KEY:
+        provider = "groq"
+        model = settings.GROQ_MODEL
+    elif settings.GEMINI_API_KEY:
+        provider = "gemini"
+        model = settings.GEMINI_MODEL
+    elif settings.OPENAI_API_KEY:
+        provider = "openai"
+        model = settings.LLM_MODEL
+    else:
+        provider = "none"
+        model = "n/a"
+
+    return {
+        "enabled": settings.ENABLE_LLM,
+        "provider": provider,
+        "model": model,
+        "api_key_configured": bool(settings.GROQ_API_KEY or settings.GEMINI_API_KEY or settings.OPENAI_API_KEY),
+    }
+
+
 # ================================================================
 #  ADMIN — FAQs
 # ================================================================
 @app.get("/admin/faqs")
 def get_faqs(db: Session = Depends(get_db), admin: User = Depends(get_admin)):
-    return db.query(FAQ).order_by(FAQ.id).all()
+    faqs = db.query(FAQ).order_by(FAQ.id).all()
+    return [_serialize_faq(faq) for faq in faqs]
 
 
 @app.post("/admin/faqs")
 def add_faq(data: FaqCreate, db: Session = Depends(get_db), admin: User = Depends(get_admin)):
-    faq = FAQ(keyword=data.keyword, response=data.response)
+    create_kwargs: dict = {}
+
+    if hasattr(FAQ, "keyword"):
+        create_kwargs["keyword"] = data.keyword
+    if hasattr(FAQ, "keywords"):
+        create_kwargs["keywords"] = data.keyword
+    if hasattr(FAQ, "question"):
+        create_kwargs["question"] = data.keyword
+
+    if hasattr(FAQ, "response"):
+        create_kwargs["response"] = data.response
+    if hasattr(FAQ, "answer"):
+        create_kwargs["answer"] = data.response
+
+    faq = FAQ(**create_kwargs)
     db.add(faq)
     db.commit()
 
@@ -374,7 +510,7 @@ def delete_faq(faq_id: int, db: Session = Depends(get_db), admin: User = Depends
     if not faq:
         raise HTTPException(status_code=404, detail="FAQ not found")
 
-    keyword_preview = faq.keyword[:60]
+    keyword_preview = _faq_keyword_value(faq)[:60]
     db.delete(faq)
     db.commit()
 
@@ -412,6 +548,20 @@ def failed_queries(db: Session = Depends(get_db), admin: User = Depends(get_admi
 # ================================================================
 #  ADMIN — AUDIT LOGS
 # ================================================================
+@app.delete("/admin/failed/{query_id}")
+def delete_failed_query(query_id: int, db: Session = Depends(get_db), admin: User = Depends(get_admin)):
+    """Delete a failed query by ID"""
+    query = db.query(FailedQuery).filter(FailedQuery.id == query_id).first()
+    if not query:
+        raise HTTPException(status_code=404, detail="Failed query not found")
+    db.delete(query)
+    db.commit()
+    return {"message": "Failed query deleted successfully"}
+
+
+# ================================================================
+#  ADMIN — AUDIT LOGS
+# ================================================================
 @app.get("/admin/audit")
 def audit_logs(db: Session = Depends(get_db), admin: User = Depends(get_admin)):
     return db.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(50).all()
@@ -439,6 +589,17 @@ def update_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    main_admin = get_main_admin(db)
+    is_actor_main = bool(main_admin and admin.id == main_admin.id)
+    is_target_main = bool(main_admin and user.id == main_admin.id)
+
+    if is_target_main and not is_actor_main and data.role != "admin":
+        raise HTTPException(status_code=403, detail="Only main admin can change main admin role")
+
+    # Main admin can demote other admins. Non-main admins cannot demote other admins.
+    if user.role == "admin" and data.role == "user" and admin.id != user.id and not is_actor_main:
+        raise HTTPException(status_code=403, detail="Only main admin can remove another admin role")
+
     old_role  = user.role
     user.role = data.role
     db.commit()
@@ -452,33 +613,83 @@ def update_user_role(
     return {"message": f"Role updated to {data.role}"}
 
 
+@app.patch("/admin/users/{user_id}/status")
+def update_user_status(
+    user_id: int,
+    data: UserStatusUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    main_admin = get_main_admin(db)
+    is_actor_main = bool(main_admin and admin.id == main_admin.id)
+    is_target_main = bool(main_admin and user.id == main_admin.id)
+
+    if is_target_main and admin.id != user.id and data.is_active is False:
+        raise HTTPException(status_code=403, detail="Only main admin can block main admin account")
+
+    # Main admin can block admin accounts. Non-main admins cannot block other admins.
+    if user.role == "admin" and data.is_active is False and admin.id != user.id and not is_actor_main:
+        raise HTTPException(status_code=403, detail="Only main admin can block admin accounts")
+
+    if admin.id == user.id and data.is_active is False:
+        raise HTTPException(status_code=400, detail="You cannot block your own account")
+
+    previous_status = user.is_active
+    user.is_active = data.is_active
+    db.commit()
+
+    action = "Unblocked" if data.is_active else "Blocked"
+    db.add(AuditLog(
+        user_email=admin.email,
+        action=f"{action} user {user.email} (active: {previous_status} -> {data.is_active})"
+    ))
+    db.commit()
+
+    return {"message": f"User {'unblocked' if data.is_active else 'blocked'} successfully"}
+
+
 # ================================================================
 #  STATIC FILES
 #  IMPORTANT: Explicit routes must come BEFORE app.mount()
 # ================================================================
-@app.get("/logo.png")
-def serve_logo():
-    return FileResponse("../assests/logo.png")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "../templates")
+
+
+def template_file(name: str) -> str:
+    return os.path.join(TEMPLATES_DIR, name)
+
 
 @app.get("/")
 def home():
-    return FileResponse("../templates/auth_ui.html")
+    return FileResponse(template_file("auth_ui.html"))
+
 
 @app.get("/auth_ui.html")
-def auth_ui_html():
-    return FileResponse("../templates/auth_ui.html")
+def auth_page():
+    return FileResponse(template_file("auth_ui.html"))
 
-@app.get("/admin_ui.html")
-def admin_ui_html():
-    return FileResponse("../templates/admin_ui.html")
 
 @app.get("/chat_ui.html")
-def chat_ui_html():
-    return FileResponse("../templates/chat_ui.html")
+def chat_page():
+    return FileResponse(template_file("chat_ui.html"))
+
+
+@app.get("/admin_ui.html")
+def admin_page():
+    return FileResponse(template_file("admin_ui.html"))
+
 
 @app.get("/reset_password.html")
-def reset_password_html():
-    return FileResponse("../templates/reset_password.html")
+def reset_password_page():
+    return FileResponse(template_file("reset_password.html"))
 
-# Must be LAST — serves all remaining static assets
-app.mount("/", StaticFiles(directory="../templates"), name="static")
+# Mount static files BEFORE the root mount (more specific routes first)
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "../static")), name="files")
+
+# Must be LAST — serves all remaining page templates
+app.mount("/templates", StaticFiles(directory=TEMPLATES_DIR), name="templates")
