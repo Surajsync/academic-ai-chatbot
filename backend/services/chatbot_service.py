@@ -1,8 +1,17 @@
 import re
 import json
 import threading
-import numpy as np
-from sentence_transformers import SentenceTransformer
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
+
 from backend.database.database import SessionLocal
 from sqlalchemy.orm import Session
 
@@ -17,6 +26,9 @@ _embedding_model_lock = threading.Lock()
 
 
 def _get_embedding_model():
+    if SentenceTransformer is None:
+        return None
+
     global _embedding_model
     if _embedding_model is None:
         with _embedding_model_lock:
@@ -404,9 +416,14 @@ def generate_reply_with_source(db: Session, message: str):
 
 # Semantic search implementation using sentence embeddings for improved relevance ranking.
 def cosine_similarity(a,b):
+    if np is None:
+        return 0.0
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 def semantic_faq_search(query: str):
+    if np is None or SentenceTransformer is None:
+        return None
+
     db= SessionLocal()
 
     model = _get_embedding_model()
