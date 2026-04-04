@@ -64,43 +64,6 @@ uvicorn backend.app:app --reload
 
 Open http://127.0.0.1:8000 after the server starts. The home page serves the auth UI.
 
-## Environment Variables
-
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/chatbot_db
-SECRET_KEY=change_this_to_a_long_random_value
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-
-GMAIL_ADDRESS=
-GMAIL_APP_PASSWORD=
-RESET_TOKEN_EXPIRE_MINS=15
-APP_BASE_URL=http://127.0.0.1:8000
-
-GROQ_API_KEY=
-GROQ_MODEL=llama-3.1-8b-instant
-ENABLE_LLM=true
-
-OPENAI_API_KEY=
-LLM_MODEL=gpt-4o-mini
-GEMINI_API_KEY=
-GEMINI_MODEL=gemini-1.5-flash
-```
-
-## Data Setup
-
-The app ships with seed scripts for the college knowledge base:
-
-```bash
-cd backend
-python3 database/seed/seed_faq.py
-python3 database/seed/seed_fee.py
-python3 database/seed/seed_clubs.py
-python3 database/seed/seed_scholarships.py
-```
-
-These populate the FAQ, fee, club, and scholarship tables used by the chatbot.
-
 ## Main API Endpoints
 
 Authentication and account management:
@@ -125,18 +88,6 @@ Admin endpoints:
 - `GET /admin/faqs`
 - `POST /admin/faqs`
 - `DELETE /admin/faqs/{faq_id}`
-
-Typical chat response:
-
-```json
-{
-  "reply": "HOD of Information Technology is Dr. ...",
-  "category": "Faculty",
-  "suggestions": ["...", "..."]
-}
-```
-
-Admin users also receive debug metadata with the response source.
 
 ## How The Bot Answers
 
