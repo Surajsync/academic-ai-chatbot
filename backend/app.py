@@ -75,7 +75,7 @@ def get_db():
         db.close()
 
 
-print("Database initialized with URL:", settings.DATABASE_URL)
+print("Database initialized...")
 # ================================================================
 #  AUTH HELPERS
 # ================================================================
