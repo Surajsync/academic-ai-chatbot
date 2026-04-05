@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     GMAIL_ADDRESS: str | None = None
     GMAIL_APP_PASSWORD: str | None = None
     RESET_TOKEN_EXPIRE_MINS: int = 15
-    APP_BASE_URL: str = "http://127.0.0.1:8000"
+    APP_BASE_URL: str
 
     OPENAI_API_KEY: str | None = None
     LLM_MODEL: str = "gpt-4o-mini"
