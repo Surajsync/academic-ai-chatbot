@@ -711,7 +711,7 @@ def template_file(name: str) -> str:
 def home():
     return FileResponse(template_file("auth_ui.html"))
 
-@app.get("/")
+@app.get("/health")
 def health():
     return {"status": "ok", "service": "rec-bijnor-academic-ai"}
 
