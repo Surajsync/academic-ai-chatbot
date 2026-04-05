@@ -537,7 +537,7 @@ const conversationList = document.getElementById("conversation-list");
 async function loadConversationsFromBackend() {
     try {
         const token = localStorage.getItem("access_token");
-        const response = await fetch("http://127.0.0.1:8000/chat/history", {
+        const response = await fetch("https://college-chatbot-api-6xv6.onrender.com/chat/history", {
             headers: {
                 "Authorization": `Bearer ${token}`
             }
@@ -838,7 +838,7 @@ async function sendMessage() {
     }
 
     try {
-        const response = await fetch("http://127.0.0.1:8000/chat", {
+        const response = await fetch("https://college-chatbot-api-6xv6.onrender.com/chat", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

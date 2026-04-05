@@ -257,7 +257,7 @@ function handleLogoError(img){
   if (next) img.src = next;
 }
 
-const API   = "http://127.0.0.1:8000";
+const API   = "https://college-chatbot-api-6xv6.onrender.com/";
 const token = localStorage.getItem("access_token");
 const uname = localStorage.getItem("username") || "Admin";
 if (!token) location.href = "/auth_ui.html";
