@@ -250,7 +250,9 @@ def verify_otp(data: OtpVerify):
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="User already exists")
-
+    if len(data.password) >72:
+        raise HTTPException(status_code=400, detail="Password must be 72 characters or fewer")
+    
     user = User(
         username        = data.full_name,
         email           = data.email,
