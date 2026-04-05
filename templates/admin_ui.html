@@ -261,6 +261,8 @@ const API   = window.location.origin;
 const token = localStorage.getItem("access_token");
 const uname = localStorage.getItem("username") || "Admin";
 if (!token) location.href = "/auth_ui.html";
+const savedRole = (localStorage.getItem("role") || "").trim().toLowerCase();
+if (savedRole && savedRole !== "admin") location.href = "/chat_ui.html";
 document.getElementById("admin-name").textContent = uname;
 document.getElementById("admin-av").textContent   = uname.charAt(0).toUpperCase();
 setInterval(()=>{ document.getElementById("clock").textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); },1000);

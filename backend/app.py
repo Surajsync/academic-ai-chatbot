@@ -298,6 +298,17 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     }
 
 
+@app.get("/auth/me")
+def auth_me(user: User = Depends(get_current_user)):
+    """Return authenticated user profile for frontend role checks."""
+    return {
+        "email": user.email,
+        "username": user.username,
+        "role": user.role,
+        "is_active": user.is_active,
+    }
+
+
 # ================================================================
 #  FORGOT PASSWORD — sends reset link to email
 # ================================================================

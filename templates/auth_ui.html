@@ -304,7 +304,46 @@ body{
 
 <script>
 
-const API_BASE = "https://college-chatbot-api-6xv6.onrender.com";
+const API_BASE = window.location.origin || "https://college-chatbot-api-6xv6.onrender.com";
+
+function normalizeRole(roleValue) {
+  return (roleValue || "").toString().trim().toLowerCase();
+}
+
+async function detectRoleWithToken(token, loginRole) {
+  let role = normalizeRole(loginRole);
+  if (role === "admin" || role === "user") {
+    return role;
+  }
+
+  try {
+    const meRes = await fetch(`${API_BASE}/auth/me`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (meRes.ok) {
+      const meData = await meRes.json();
+      role = normalizeRole(meData.role);
+      if (role === "admin" || role === "user") {
+        return role;
+      }
+    }
+  } catch {
+    // Ignore and try admin probe fallback.
+  }
+
+  try {
+    const adminProbe = await fetch(`${API_BASE}/admin/dashboard`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (adminProbe.ok) {
+      return "admin";
+    }
+  } catch {
+    // Fall through to default.
+  }
+
+  return "user";
+}
 
 // OTP state
 let pendingReg = {};
@@ -360,10 +399,12 @@ async function doLogin() {
     
     // Set new auth data
     localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("username",     data.username);
-    localStorage.setItem("role",         data.role);
+    localStorage.setItem("username",     data.username || id);
 
-    window.location.href = data.role === "admin" ? "/admin_ui.html" : "/chat_ui.html";
+    const role = await detectRoleWithToken(data.access_token, data.role);
+    localStorage.setItem("role", role);
+
+    window.location.href = role === "admin" ? "/admin_ui.html" : "/chat_ui.html";
 
   } catch (err) {
     errBox.textContent = err.message;

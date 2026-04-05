@@ -106,6 +106,11 @@ CLUB_RECORD_HINTS = {"club", "clubs", "society", "activity"}
 PLACEMENT_RECORD_HINTS = {"placement", "placements", "company", "companies", "job", "recruit"}
 SCHOLARSHIP_RECORD_HINTS = {"scholarship", "scholarships", "grant", "financial", "assistance"}
 
+GREETING_TOKENS = {
+    "hi", "hii", "hiii", "hello", "hey", "yo", "hola", "namaste", "hlo", "sup"
+}
+THANKS_TOKENS = {"thanks", "thank", "thx", "thankyou", "thankyou!", "thankyou."}
+
 
 def _faq_keyword_text(faq: FAQ) -> str:
     return (getattr(faq, "keyword", None) or getattr(faq, "keywords", None) or getattr(faq, "question", None) or "")
@@ -181,6 +186,25 @@ def _score_overlap(query_tokens: set[str], candidate_text: str) -> int:
     if not candidate_tokens:
         return 0
     return len(query_tokens.intersection(candidate_tokens))
+
+
+def _small_talk_reply(normalized_message: str, query_tokens: set[str]) -> tuple[str, str] | None:
+    if not normalized_message:
+        return None
+
+    if query_tokens.intersection(GREETING_TOKENS):
+        return (
+            "Hello! I can help with REC Bijnor information like departments, fees, placements, clubs, and scholarships. What would you like to know?",
+            "smalltalk",
+        )
+
+    if query_tokens.intersection(THANKS_TOKENS):
+        return ("You're welcome! If you want, ask me anything about REC Bijnor academics or campus details.", "smalltalk")
+
+    if normalized_message in {"ok", "okay", "great", "nice"}:
+        return ("Happy to help. Ask your next question any time.", "smalltalk")
+
+    return None
 
 
 def _collect_relevant_faqs(
@@ -401,6 +425,11 @@ def _generate_reply_with_source(db: Session, message: str):
 
     expanded_query = _expand_aliases(normalized_message)
     query_tokens = _tokenize(expanded_query)
+
+    small_talk = _small_talk_reply(normalized_message, query_tokens)
+    if small_talk:
+        return _clean_reply_text(small_talk[0]), small_talk[1]
+
     intent = _detect_intent(query_tokens)
 
     direct_answer = _direct_structured_answer(db, query_tokens)
