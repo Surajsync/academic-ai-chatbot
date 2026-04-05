@@ -58,6 +58,22 @@ def _get_embedding_model():
                     _embedding_model = sentence_transformer_class(_EMBEDDING_MODEL_NAME)
     return _embedding_model
 
+_embedding_model = None
+
+def get_embedding_model():
+    global _embedding_model
+
+    if _embedding_model is None:
+        with _embedding_model_lock:
+            if _embedding_model is None:
+                ST = _get_sentence_transformer_class()
+                if ST is None:
+                    return None
+                _embedding_model = ST(_EMBEDDING_MODEL_NAME)
+
+    return _embedding_model
+
+
 OUT_OF_SCOPE_REPLY = "I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services."
 
 ALIAS_MAP = {
