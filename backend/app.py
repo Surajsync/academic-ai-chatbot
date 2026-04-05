@@ -250,8 +250,8 @@ def verify_otp(data: OtpVerify):
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="User already exists")
-    if len(data.password) >72:
-        raise HTTPException(status_code=400, detail="Password must be 72 characters or fewer")
+    if len(data.password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=400, detail="Password too long (max 72 bytes)")
     
     user = User(
         username        = data.full_name,
@@ -270,30 +270,24 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 @app.post("/auth/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
 
-    print("=== LOGIN DEBUG START ===")
-    print("INPUT EMAIL:", form_data.username)
-    print("INPUT PASSWORD:", form_data.password)
-
+    # Step 1: Find user
     user = db.query(User).filter(User.email == form_data.username).first()
 
-    print("USER FOUND:", user)
-
-    if user:
-        print("HASHED PASSWORD IN DB:", user.hashed_password)
-
-        result = verify_password(form_data.password, user.hashed_password)
-        print("VERIFY RESULT:", result)
-    else:
-        print("USER NOT FOUND")
-
-    print("=== LOGIN DEBUG END ===")
-
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    # Step 2: Check user exists
+    if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="Your account is blocked.")
+    # Step 3: Verify password (ONLY ONCE)
+    password_valid = verify_password(form_data.password, user.hashed_password)
 
+    if not password_valid:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # Step 4: Check active
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Your account is blocked")
+
+    # Step 5: Generate token
     token = create_access_token({"sub": user.email})
 
     return {
