@@ -532,12 +532,13 @@ const chatBox = document.getElementById("chat-box");
 const input = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
 const conversationList = document.getElementById("conversation-list");
+const API_BASE = window.location.origin;
 
 // ================= LOAD CONVERSATIONS FROM BACKEND =================
 async function loadConversationsFromBackend() {
     try {
         const token = localStorage.getItem("access_token");
-        const response = await fetch("https://college-chatbot-api-6xv6.onrender.com/chat/history", {
+        const response = await fetch(`${API_BASE}/chat/history`, {
             headers: {
                 "Authorization": `Bearer ${token}`
             }
@@ -838,7 +839,7 @@ async function sendMessage() {
     }
 
     try {
-        const response = await fetch("https://college-chatbot-api-6xv6.onrender.com/chat", {
+        const response = await fetch(`${API_BASE}/chat`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
