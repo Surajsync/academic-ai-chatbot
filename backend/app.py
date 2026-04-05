@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 from pydantic import BaseModel
 from jose import JWTError, jwt
 
@@ -269,9 +269,14 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 # ================================================================
 @app.post("/auth/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    login_id = form_data.username.strip()
+    login_id_lower = login_id.lower()
 
     # Step 1: Find user
-    user = db.query(User).filter(User.email == form_data.username).first()
+    user = db.query(User).filter(
+        (func.lower(User.email) == login_id_lower) |
+        (func.lower(User.username) == login_id_lower)
+    ).first()
 
     # Step 2: Check user exists
     if not user:
@@ -294,7 +299,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "access_token": token,
         "token_type": "bearer",
         "role": user.role,
-        "username": user.username
+        "username": user.username,
+        "redirect_to": "/admin_ui.html" if user.role == "admin" else "/chat_ui.html",
     }
 
 

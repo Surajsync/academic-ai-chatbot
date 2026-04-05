@@ -147,6 +147,33 @@ body{
   box-shadow:0 0 0 3px rgba(232,130,12,0.1);
 }
 
+.password-wrap{
+  position:relative;
+}
+
+.password-wrap input{
+  padding-right:72px;
+}
+
+.toggle-eye{
+  position:absolute;
+  top:50%;
+  right:10px;
+  transform:translateY(-50%);
+  border:1px solid rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.06);
+  color:var(--cream2);
+  border-radius:7px;
+  padding:4px 10px;
+  font-size:11px;
+  cursor:pointer;
+}
+
+.toggle-eye:hover{
+  border-color:var(--saffron);
+  color:var(--saffron);
+}
+
 /* submit button */
 .btn-submit{
   width:100%;
@@ -219,7 +246,10 @@ body{
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" id="liPass" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+          <div class="password-wrap">
+            <input type="password" id="liPass" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+            <button type="button" class="toggle-eye" onclick="togglePassword('liPass', this)">Show</button>
+          </div>
         </div>
         <div class="err" id="liErr">Incorrect ID or password. Try demo / demo123.</div>
         <button class="btn-submit" onclick="doLogin()">Sign In →</button>
@@ -244,7 +274,10 @@ body{
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" id="rgPass" placeholder="Create a strong password">
+          <div class="password-wrap">
+            <input type="password" id="rgPass" placeholder="Create a strong password">
+            <button type="button" class="toggle-eye" onclick="togglePassword('rgPass', this)">Show</button>
+          </div>
         </div>
         <div class="err" id="rgErr">Please fill in all fields correctly.</div>
         <button class="btn-submit" id="sendOtpBtn" onclick="sendOtp()">Send OTP to Email →</button>
@@ -304,7 +337,7 @@ body{
 
 <script>
 
-const API_BASE = window.location.origin || "https://college-chatbot-api-6xv6.onrender.com";
+const API_BASE = window.location.origin;
 
 function normalizeRole(roleValue) {
   return (roleValue || "").toString().trim().toLowerCase();
@@ -343,6 +376,14 @@ async function detectRoleWithToken(token, loginRole) {
   }
 
   return "user";
+}
+
+function togglePassword(inputId, buttonEl) {
+  const input = document.getElementById(inputId);
+  if (!input || !buttonEl) return;
+  const showing = input.type === "text";
+  input.type = showing ? "password" : "text";
+  buttonEl.textContent = showing ? "Show" : "Hide";
 }
 
 // OTP state
@@ -404,7 +445,8 @@ async function doLogin() {
     const role = await detectRoleWithToken(data.access_token, data.role);
     localStorage.setItem("role", role);
 
-    window.location.href = role === "admin" ? "/admin_ui.html" : "/chat_ui.html";
+    const redirectTo = data.redirect_to || (role === "admin" ? "/admin_ui.html" : "/chat_ui.html");
+    window.location.href = redirectTo;
 
   } catch (err) {
     errBox.textContent = err.message;

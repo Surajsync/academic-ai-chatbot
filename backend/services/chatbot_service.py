@@ -258,7 +258,7 @@ def _collect_relevant_faqs(
             best_score = max(best_score, score)
 
         # Skip weak matches to reduce noisy context.
-        min_score = 1 if intent in {"fee", "hod", "club", "placement", "scholarship"} else 2
+        min_score = 1 if intent in {"fee", "hod", "club", "placement", "scholarship"} or len(query_tokens) <= 3 else 2
         if best_score >= min_score:
             ranked.append((best_score, faq))
 
@@ -463,6 +463,10 @@ def _generate_reply_with_source(db: Session, message: str):
     if fallback_faqs:
         return _clean_reply_text(_faq_response_text(fallback_faqs[0])), "faq"
 
+    semantic_fallback = semantic_faq_search(original_message)
+    if semantic_fallback:
+        return _clean_reply_text(semantic_fallback[0]), "semantic"
+
     return _clean_reply_text(OUT_OF_SCOPE_REPLY), "fallback"
 
 
@@ -498,7 +502,14 @@ def semantic_faq_search(query: str):
     best_faq = None
 
     for faq in faqs:
-        stored_embedding = np_module.array(json.loads(faq.embedding))
+        if not getattr(faq, "embedding", None):
+            continue
+
+        try:
+            stored_embedding = np_module.array(json.loads(faq.embedding))
+        except Exception:
+            continue
+
         score = cosine_similarity(query_embedding, stored_embedding)
 
         if score > best_score:
@@ -506,7 +517,7 @@ def semantic_faq_search(query: str):
             best_faq = faq
         
     db.close()
-    if best_score >= 0.7:  # Threshold for relevance
+    if best_faq is not None and best_score >= 0.65:  # Slightly relaxed threshold for better recall
         return _faq_response_text(best_faq), "semantic", best_score
     else:
         return None
@@ -538,7 +549,14 @@ def get_response(query: str):
             }
 
         # 3. LLM fallback
-        answer = generate_answer(query)
+        context = build_context(db, query)
+        if settings.ENABLE_LLM and context:
+            try:
+                answer = generate_answer(context, query)
+            except Exception:
+                answer = OUT_OF_SCOPE_REPLY
+        else:
+            answer = OUT_OF_SCOPE_REPLY
 
         return {
             "answer": answer,

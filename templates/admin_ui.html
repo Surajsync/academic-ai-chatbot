@@ -263,6 +263,37 @@ const uname = localStorage.getItem("username") || "Admin";
 if (!token) location.href = "/auth_ui.html";
 const savedRole = (localStorage.getItem("role") || "").trim().toLowerCase();
 if (savedRole && savedRole !== "admin") location.href = "/chat_ui.html";
+
+async function enforceAdminAccess() {
+  if (!token) {
+    location.href = "/auth_ui.html";
+    return;
+  }
+
+  try {
+    const meRes = await fetch(`${API}/auth/me`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+
+    if (!meRes.ok) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("role");
+      location.href = "/auth_ui.html";
+      return;
+    }
+
+    const me = await meRes.json();
+    const role = (me.role || "").toString().trim().toLowerCase();
+    localStorage.setItem("role", role || "user");
+    if (role !== "admin") {
+      location.href = "/chat_ui.html";
+    }
+  } catch {
+    // Keep current view on transient errors; API calls will still enforce backend auth.
+  }
+}
+
+enforceAdminAccess();
 document.getElementById("admin-name").textContent = uname;
 document.getElementById("admin-av").textContent   = uname.charAt(0).toUpperCase();
 setInterval(()=>{ document.getElementById("clock").textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); },1000);
