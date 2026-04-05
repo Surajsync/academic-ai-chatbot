@@ -3,6 +3,7 @@ import random
 import time
 import secrets
 import smtplib
+import logging
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 
@@ -32,9 +33,9 @@ from backend.routes import chat_routes
 # Base.metadata.drop_all(bind=engine)
 # Base.metadata.create_all(bind=engine)
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title="REC Bijnor Academic AI")
+
+logger = logging.getLogger(__name__)
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,6 +47,16 @@ app.add_middleware(
 
 # Include API routes from separate modules
 app.include_router(chat_routes.router)
+
+
+@app.on_event("startup")
+def initialize_database() -> None:
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database schema initialized")
+    except Exception:
+        # Do not block server startup; this keeps the process listening on PORT.
+        logger.exception("Database schema initialization failed during startup")
 
 # ================================================================
 #  CONFIG  ← Edit these before running
@@ -687,6 +698,11 @@ def admin_page():
 @app.get("/reset_password.html")
 def reset_password_page():
     return FileResponse(template_file("reset_password.html"))
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok", "service": "rec-bijnor-academic-ai"}
 
 # Mount static files BEFORE the root mount (more specific routes first)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "../static")), name="files")

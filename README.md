@@ -64,6 +64,26 @@ uvicorn backend.app:app --reload
 
 Open http://127.0.0.1:8000 after the server starts. The home page serves the auth UI.
 
+## Render Deployment Notes
+
+Use these settings for a FastAPI Web Service on Render:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn backend.app:app --host 0.0.0.0 --port $PORT`
+- Health check path: `/healthz`
+
+Required environment variables:
+
+- `DATABASE_URL`
+- `SECRET_KEY`
+
+Optional environment variables:
+
+- `ENABLE_LLM`, `GROQ_API_KEY`, `GROQ_MODEL`
+- `OPENAI_API_KEY`, `LLM_MODEL`
+- `GEMINI_API_KEY`, `GEMINI_MODEL`
+- `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`, `APP_BASE_URL`
+
 ## Main API Endpoints
 
 Authentication and account management:

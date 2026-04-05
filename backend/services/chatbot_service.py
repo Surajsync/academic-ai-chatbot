@@ -2,15 +2,8 @@ import re
 import json
 import threading
 
-try:
-    import numpy as np
-except ImportError:
-    np = None
-
-try:
-    from sentence_transformers import SentenceTransformer
-except ImportError:
-    SentenceTransformer = None
+np = None
+SentenceTransformer = None
 
 from backend.database.database import SessionLocal
 from sqlalchemy.orm import Session
@@ -25,8 +18,31 @@ _embedding_model = None
 _embedding_model_lock = threading.Lock()
 
 
-def _get_embedding_model():
+def _get_numpy():
+    global np
+    if np is None:
+        try:
+            import numpy as _np
+            np = _np
+        except ImportError:
+            return None
+    return np
+
+
+def _get_sentence_transformer_class():
+    global SentenceTransformer
     if SentenceTransformer is None:
+        try:
+            from sentence_transformers import SentenceTransformer as _SentenceTransformer
+            SentenceTransformer = _SentenceTransformer
+        except ImportError:
+            return None
+    return SentenceTransformer
+
+
+def _get_embedding_model():
+    sentence_transformer_class = _get_sentence_transformer_class()
+    if sentence_transformer_class is None:
         return None
 
     global _embedding_model
@@ -34,12 +50,12 @@ def _get_embedding_model():
         with _embedding_model_lock:
             if _embedding_model is None:
                 try:
-                    _embedding_model = SentenceTransformer(_EMBEDDING_MODEL_NAME)
+                    _embedding_model = sentence_transformer_class(_EMBEDDING_MODEL_NAME)
                 except RuntimeError as exc:
                     # Retry once for transient hub/http client lifecycle glitches.
                     if "client has been closed" not in str(exc).lower():
                         raise
-                    _embedding_model = SentenceTransformer(_EMBEDDING_MODEL_NAME)
+                    _embedding_model = sentence_transformer_class(_EMBEDDING_MODEL_NAME)
     return _embedding_model
 
 OUT_OF_SCOPE_REPLY = "I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services."
@@ -416,12 +432,15 @@ def generate_reply_with_source(db: Session, message: str):
 
 # Semantic search implementation using sentence embeddings for improved relevance ranking.
 def cosine_similarity(a,b):
-    if np is None:
+    np_module = _get_numpy()
+    if np_module is None:
         return 0.0
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    return np_module.dot(a, b) / (np_module.linalg.norm(a) * np_module.linalg.norm(b))
 
 def semantic_faq_search(query: str):
-    if np is None or SentenceTransformer is None:
+    np_module = _get_numpy()
+    sentence_transformer_class = _get_sentence_transformer_class()
+    if np_module is None or sentence_transformer_class is None:
         return None
 
     db= SessionLocal()
@@ -434,7 +453,7 @@ def semantic_faq_search(query: str):
     best_faq = None
 
     for faq in faqs:
-        stored_embedding = np.array(json.loads(faq.embedding))
+        stored_embedding = np_module.array(json.loads(faq.embedding))
         score = cosine_similarity(query_embedding, stored_embedding)
 
         if score > best_score:
