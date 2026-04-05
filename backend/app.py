@@ -267,19 +267,38 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 # ================================================================
 @app.post("/auth/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+
+    print("=== LOGIN DEBUG START ===")
+    print("INPUT EMAIL:", form_data.username)
+    print("INPUT PASSWORD:", form_data.password)
+
     user = db.query(User).filter(User.email == form_data.username).first()
+
+    print("USER FOUND:", user)
+
+    if user:
+        print("HASHED PASSWORD IN DB:", user.hashed_password)
+
+        result = verify_password(form_data.password, user.hashed_password)
+        print("VERIFY RESULT:", result)
+    else:
+        print("USER NOT FOUND")
+
+    print("=== LOGIN DEBUG END ===")
 
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Your account is blocked. Contact admin.")
+        raise HTTPException(status_code=403, detail="Your account is blocked.")
 
     token = create_access_token({"sub": user.email})
+
     return {
         "access_token": token,
-        "token_type":   "bearer",
-        "role":         user.role,
-        "username":     user.username
+        "token_type": "bearer",
+        "role": user.role,
+        "username": user.username
     }
 
 
