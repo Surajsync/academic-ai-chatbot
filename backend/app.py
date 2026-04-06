@@ -198,17 +198,19 @@ def send_email(to: str, subject: str, body: str):
     msg["To"] = to
 
     # Try both common Gmail SMTP paths because some hosts block specific ports.
+    # Keep per-attempt timeout low so API returns before frontend request timeout.
     send_attempts: list[tuple[str, int]] = [("ssl", 465), ("starttls", 587)]
+    smtp_timeout_seconds = 8
     errors: list[str] = []
 
     for mode, port in send_attempts:
         try:
             if mode == "ssl":
-                with smtplib.SMTP_SSL("smtp.gmail.com", port, timeout=15) as server:
+                with smtplib.SMTP_SSL("smtp.gmail.com", port, timeout=smtp_timeout_seconds) as server:
                     server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
                     server.send_message(msg)
             else:
-                with smtplib.SMTP("smtp.gmail.com", port, timeout=15) as server:
+                with smtplib.SMTP("smtp.gmail.com", port, timeout=smtp_timeout_seconds) as server:
                     server.ehlo()
                     server.starttls()
                     server.ehlo()
@@ -220,6 +222,8 @@ def send_email(to: str, subject: str, body: str):
         except OSError as err:
             # Common deployment failure: network/egress blocked to SMTP endpoint.
             errors.append(f"{mode}:{port}: os_error={err}")
+            if "network is unreachable" in str(err).lower() or getattr(err, "errno", None) == 101:
+                break
         except smtplib.SMTPException as err:
             errors.append(f"{mode}:{port}: smtp_error={err}")
         except Exception as err:
