@@ -193,12 +193,13 @@ def send_email(to: str, subject: str, body: str):
     
     # Try Resend API first (works everywhere, including Render without port blocking)
     if settings.RESEND_API_KEY:
+        resend_from = settings.RESEND_FROM_EMAIL or "onboarding@resend.dev"
         try:
             response = requests.post(
                 "https://api.resend.com/emails",
                 headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
                 json={
-                    "from": "noreply@recbijnor.onrender.com",
+                    "from": resend_from,
                     "to": to,
                     "subject": subject,
                     "text": body
@@ -207,10 +208,20 @@ def send_email(to: str, subject: str, body: str):
             )
             if response.status_code in (200, 201):
                 return
-            else:
-                logger.warning(f"Resend API error: {response.status_code} - {response.text}")
+            resend_error = (response.text or "").strip()
+            logger.warning(f"Resend API error: {response.status_code} - {resend_error}")
+            raise HTTPException(
+                status_code=502,
+                detail=f"Resend email error ({response.status_code}). Verify RESEND_API_KEY and RESEND_FROM_EMAIL. {resend_error}"
+            )
+        except HTTPException:
+            raise
         except Exception as err:
-            logger.warning(f"Resend API failed: {err}. Falling back to SMTP.")
+            logger.exception("Resend API request failed")
+            raise HTTPException(
+                status_code=502,
+                detail=f"Resend request failed: {err}"
+            )
     
     # Fall back to SMTP if Resend unavailable or failed
     if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
