@@ -112,6 +112,10 @@ GREETING_TOKENS = {
 THANKS_TOKENS = {"thanks", "thank", "thx", "thankyou", "thankyou!", "thankyou."}
 
 
+def _is_llm_enabled() -> bool:
+    return bool(settings.ENABLE_LLM or settings.GROQ_API_KEY or settings.GEMINI_API_KEY or settings.OPENAI_API_KEY)
+
+
 def _faq_keyword_text(faq: FAQ) -> str:
     return (getattr(faq, "keyword", None) or getattr(faq, "keywords", None) or getattr(faq, "question", None) or "")
 
@@ -449,7 +453,7 @@ def _generate_reply_with_source(db: Session, message: str):
     if not context:
         return _clean_reply_text(OUT_OF_SCOPE_REPLY), "fallback"
 
-    if settings.ENABLE_LLM:
+    if _is_llm_enabled():
         try:
             # print("DEBUG CONTEXT:", context)
             ai_reply = generate_answer(context, original_message)
@@ -550,7 +554,7 @@ def get_response(query: str):
 
         # 3. LLM fallback
         context = build_context(db, query)
-        if settings.ENABLE_LLM and context:
+        if _is_llm_enabled() and context:
             try:
                 answer = generate_answer(context, query)
             except Exception:

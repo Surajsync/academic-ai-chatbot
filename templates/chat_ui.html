@@ -585,7 +585,7 @@ async function loadConversationsFromBackend() {
             const conversations = await response.json();
             // Convert backend format to frontend format
             const formattedConvs = conversations.map(conv => ({
-                id: conv.id,
+              id: normalizeConversationId(conv.id),
                 title: conv.title,
                 messages: conv.messages.map(msg => ({
                     role: msg.role,
@@ -631,8 +631,41 @@ const state = {
     archivedExpanded: false
 };
 
+function normalizeConversationId(id) {
+  if (id === null || id === undefined) return null;
+  return String(id);
+}
+
+function isTemporaryConversationId(id) {
+  return normalizeConversationId(id)?.startsWith("tmp-");
+}
+
+function findConversation(id) {
+  const targetId = normalizeConversationId(id);
+  return state.conversations.find(c => normalizeConversationId(c.id) === targetId);
+}
+
+state.conversations = state.conversations.map(conv => ({
+  ...conv,
+  id: normalizeConversationId(conv.id),
+  messages: (conv.messages || []).map(msg => ({
+    role: msg.role,
+    text: msg.text || msg.content || ""
+  }))
+}));
+state.currentConversationId = normalizeConversationId(state.currentConversationId);
+
 function updateState(newState = {}) {
     Object.assign(state, newState);
+  state.conversations = state.conversations.map(conv => ({
+    ...conv,
+    id: normalizeConversationId(conv.id),
+    messages: (conv.messages || []).map(msg => ({
+      role: msg.role,
+      text: msg.text || msg.content || ""
+    }))
+  }));
+  state.currentConversationId = normalizeConversationId(state.currentConversationId);
     localStorage.setItem("conversations", JSON.stringify(state.conversations));
     localStorage.setItem("currentConversationId", state.currentConversationId);
     renderConversations();
@@ -666,7 +699,7 @@ function createNewConversation() {
         }
     }
 
-    const id = Date.now().toString();
+    const id = `tmp-${Date.now()}`;
 
     const newConv = {
         id,
@@ -700,17 +733,17 @@ function showWelcomePrompt() {
 
 // ================= CREATE CONVERSATION ITEM =================
 function createConversationItem(conv) {
+  const convId = normalizeConversationId(conv.id);
 
     const wrapper = document.createElement("div");
     wrapper.className = "conversation-item";
+  wrapper.onclick = () => {
+    updateState({ currentConversationId: convId });
+    loadConversation(convId);
+  };
 
     const title = document.createElement("span");
     title.textContent = conv.pinned ? "📌 " + conv.title : conv.title;
-
-    title.onclick = () => {
-        updateState({ currentConversationId: conv.id });
-        loadConversation(conv.id);
-    };
 
     const menuBtn = document.createElement("span");
     menuBtn.className = "menu-btn";
@@ -720,17 +753,17 @@ function createConversationItem(conv) {
     dropdown.className = "dropdown";
 
     dropdown.innerHTML = `
-        <div data-action="share" data-id="${conv.id}">Share</div>
-        <div data-action="rename" data-id="${conv.id}">Rename</div>
-        <div data-action="toggle-pin" data-id="${conv.id}">
+      <div data-action="share" data-id="${convId}">Share</div>
+      <div data-action="rename" data-id="${convId}">Rename</div>
+      <div data-action="toggle-pin" data-id="${convId}">
             ${conv.pinned ? "Unpin" : "Pin"}
         </div>
         ${
             conv.archived
-                ? `<div data-action="restore" data-id="${conv.id}">Restore</div>`
-                : `<div data-action="archive" data-id="${conv.id}">Archive</div>`
+          ? `<div data-action="restore" data-id="${convId}">Restore</div>`
+          : `<div data-action="archive" data-id="${convId}">Archive</div>`
         }
-        <div data-action="delete" data-id="${conv.id}">Delete</div>
+      <div data-action="delete" data-id="${convId}">Delete</div>
     `;
 
     menuBtn.onclick = (e) => {
@@ -800,7 +833,7 @@ function renderConversations() {
 // ================= LOAD CHAT =================
 function loadConversation(id) {
 
-    const conv = state.conversations.find(c => c.id === id);
+  const conv = findConversation(id);
     if (!conv) return;
 
     chatBox.innerHTML = "";
@@ -829,9 +862,7 @@ function loadConversation(id) {
 // ================= SAVE MESSAGE =================
 function saveMessage(role, text) {
 
-    const conv = state.conversations.find(
-        c => c.id === state.currentConversationId
-    );
+  const conv = findConversation(state.currentConversationId);
 
     if (!conv) return;
 
@@ -876,18 +907,42 @@ async function sendMessage() {
     }
 
     try {
+      const activeConversationId = normalizeConversationId(state.currentConversationId);
+      const conversationIdForApi = activeConversationId && !isTemporaryConversationId(activeConversationId)
+        ? Number(activeConversationId)
+        : null;
+
         const response = await fetch(`${API_BASE}/chat`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({ message: msg })
+        body: JSON.stringify({
+          message: msg,
+          conversation_id: conversationIdForApi
+        })
         });
 
         if (!response.ok) return;
 
         const data = await response.json();
+
+      if (data.conversation_id) {
+        const serverConversationId = normalizeConversationId(data.conversation_id);
+
+        if (activeConversationId && isTemporaryConversationId(activeConversationId)) {
+          const localConversation = findConversation(activeConversationId);
+          if (localConversation) {
+            localConversation.id = serverConversationId;
+          }
+          state.currentConversationId = serverConversationId;
+          updateState();
+        } else if (serverConversationId && state.currentConversationId !== serverConversationId) {
+          state.currentConversationId = serverConversationId;
+          updateState();
+        }
+      }
 
         const botBubble = document.createElement("div");
         botBubble.className = "message bot";
@@ -911,7 +966,7 @@ async function sendMessage() {
 
 // ================= CONVERSATION ACTIONS =================
 function shareConversation(id) {
-    const conv = state.conversations.find(c => c.id === id);
+  const conv = findConversation(id);
     if (!conv) return;
 
     const text = conv.messages
@@ -923,7 +978,7 @@ function shareConversation(id) {
 }
 
 function renameConversation(id) {
-    const conv = state.conversations.find(c => c.id === id);
+  const conv = findConversation(id);
     if (!conv) return;
 
     const newTitle = prompt("Enter new name:", conv.title);
@@ -934,7 +989,7 @@ function renameConversation(id) {
 }
 
 function togglePin(id) {
-    const conv = state.conversations.find(c => c.id === id);
+  const conv = findConversation(id);
     if (!conv) return;
 
     conv.pinned = !conv.pinned;
@@ -942,13 +997,13 @@ function togglePin(id) {
 }
 
 function archiveConversation(id) {
-    const conv = state.conversations.find(c => c.id === id);
+  const conv = findConversation(id);
     if (!conv) return;
 
     conv.archived = true;
     conv.pinned = false;
 
-    const wasCurrent = state.currentConversationId === id;
+    const wasCurrent = normalizeConversationId(state.currentConversationId) === normalizeConversationId(id);
     updateState();
 
     if (wasCurrent) {
@@ -965,7 +1020,7 @@ function archiveConversation(id) {
 }
 
 function restoreConversation(id) {
-    const conv = state.conversations.find(c => c.id === id);
+  const conv = findConversation(id);
     if (!conv) return;
 
     conv.archived = false;
@@ -976,12 +1031,13 @@ function deleteConversation(id) {
     const confirmDelete = confirm("Are you sure you want to delete this chat?");
     if (!confirmDelete) return;
 
-    const filtered = state.conversations.filter(c => c.id !== id);
+    const targetId = normalizeConversationId(id);
+    const filtered = state.conversations.filter(c => normalizeConversationId(c.id) !== targetId);
 
     updateState({
         conversations: filtered,
         currentConversationId:
-            state.currentConversationId === id ? null : state.currentConversationId
+        normalizeConversationId(state.currentConversationId) === targetId ? null : state.currentConversationId
     });
 
     if (!state.currentConversationId) {
@@ -1037,7 +1093,7 @@ document.querySelector(".logout").addEventListener("click", () => {
 // ================= INITIAL LOAD =================
 // Load conversations from backend first
 loadConversationsFromBackend().then(() => {
-    if (!state.currentConversationId || !state.conversations.find(c => c.id === state.currentConversationId)) {
+  if (!state.currentConversationId || !findConversation(state.currentConversationId)) {
         createNewConversation();
         showWelcomePrompt();
     } else {

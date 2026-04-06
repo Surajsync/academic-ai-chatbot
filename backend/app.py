@@ -107,14 +107,18 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 
 def get_admin(user: User = Depends(get_current_user)) -> User:
-    if user.role != "admin":
+    if _normalize_role_value(user.role) != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
 
 
 def get_main_admin(db: Session) -> User | None:
     """Main admin is the oldest admin account by ID."""
-    return db.query(User).filter(User.role == "admin").order_by(User.id.asc()).first()
+    users = db.query(User).order_by(User.id.asc()).all()
+    for user in users:
+        if _normalize_role_value(user.role) == "admin":
+            return user
+    return None
 
 
 # ================================================================
@@ -127,6 +131,7 @@ class RegisterRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    conversation_id: int | None = None
 
 class OtpRequest(BaseModel):
     email: str
@@ -151,6 +156,14 @@ class UserStatusUpdate(BaseModel):
 class FaqCreate(BaseModel):
     keyword: str
     response: str
+
+
+def _normalize_role_value(role_value: str | None) -> str:
+    return (role_value or "user").strip().lower()
+
+
+def _is_llm_enabled() -> bool:
+    return bool(settings.ENABLE_LLM or settings.GROQ_API_KEY or settings.GEMINI_API_KEY or settings.OPENAI_API_KEY)
 
 
 def _faq_keyword_value(faq: FAQ) -> str:
@@ -195,18 +208,20 @@ def send_email(to: str, subject: str, body: str):
 # ================================================================
 @app.post("/auth/send-otp")
 def send_otp(data: OtpRequest, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == data.email).first():
+    email = data.email.strip().lower()
+
+    if db.query(User).filter(func.lower(User.email) == email).first():
         raise HTTPException(status_code=400, detail="Email already registered. Please login.")
 
     otp = str(random.randint(100000, 999999))
-    otp_store[data.email] = {
+    otp_store[email] = {
         "otp":        otp,
         "expires_at": time.time() + 300,   # 5 minutes
         "verified":   False
     }
 
     send_email(
-        to      = data.email,
+        to      = email,
         subject = "Your OTP — REC Bijnor Academic AI",
         body    = f"""Hello!
 
@@ -227,19 +242,20 @@ This OTP is valid for 5 minutes. Do not share it with anyone.
 # ================================================================
 @app.post("/auth/verify-otp")
 def verify_otp(data: OtpVerify):
-    record = otp_store.get(data.email)
+    email = data.email.strip().lower()
+    record = otp_store.get(email)
 
     if not record:
         raise HTTPException(status_code=400, detail="No OTP found. Please request a new one.")
 
     if time.time() > record["expires_at"]:
-        otp_store.pop(data.email, None)
+        otp_store.pop(email, None)
         raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
 
     if record["otp"] != data.otp.strip():
         raise HTTPException(status_code=400, detail="Incorrect OTP. Please try again.")
 
-    otp_store[data.email]["verified"] = True
+    otp_store[email]["verified"] = True
     return {"message": "OTP verified"}
 
 
@@ -248,19 +264,35 @@ def verify_otp(data: OtpVerify):
 # ================================================================
 @app.post("/auth/register")
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == data.email).first():
+    email = data.email.strip().lower()
+
+    if db.query(User).filter(func.lower(User.email) == email).first():
         raise HTTPException(status_code=400, detail="User already exists")
+
+    otp_record = otp_store.get(email)
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="Please request OTP first")
+    if time.time() > otp_record["expires_at"]:
+        otp_store.pop(email, None)
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+    if not otp_record.get("verified"):
+        raise HTTPException(status_code=400, detail="Please verify OTP before registration")
+
     if len(data.password.encode("utf-8")) > 72:
         raise HTTPException(status_code=400, detail="Password too long (max 72 bytes)")
     
     user = User(
         username        = data.full_name,
-        email           = data.email,
+        email           = email,
         hashed_password = hash_password(data.password),
         role            = "user"
     )
     db.add(user)
     db.commit()
+
+    # Consume OTP after successful account creation.
+    otp_store.pop(email, None)
+
     return {"message": "Registered successfully"}
 
 
@@ -294,13 +326,14 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     # Step 5: Generate token
     token = create_access_token({"sub": user.email})
+    normalized_role = _normalize_role_value(user.role)
 
     return {
         "access_token": token,
         "token_type": "bearer",
-        "role": user.role,
+        "role": normalized_role,
         "username": user.username,
-        "redirect_to": "/admin_ui.html" if user.role == "admin" else "/chat_ui.html",
+        "redirect_to": "/admin_ui.html" if normalized_role == "admin" else "/chat_ui.html",
     }
 
 
@@ -310,7 +343,7 @@ def auth_me(user: User = Depends(get_current_user)):
     return {
         "email": user.email,
         "username": user.username,
-        "role": user.role,
+        "role": _normalize_role_value(user.role),
         "is_active": user.is_active,
     }
 
@@ -389,10 +422,18 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
     if setting and setting.maintenance_mode:
         return {"reply": "System is under maintenance. Please try later."}
 
-    conversation = Conversation(user_id=user.id)
-    db.add(conversation)
-    db.commit()
-    db.refresh(conversation)
+    conversation = None
+    if request.conversation_id:
+        conversation = db.query(Conversation).filter(
+            Conversation.id == request.conversation_id,
+            Conversation.user_id == user.id
+        ).first()
+
+    if not conversation:
+        conversation = Conversation(user_id=user.id)
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
 
     db.add(Message(conversation_id=conversation.id, role="user", content=request.message))
     db.commit()
@@ -429,11 +470,13 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
         "suggestions": suggestions[:3]
     }
     
-    if user.role == "admin":
+    if _normalize_role_value(user.role) == "admin":
         response["debug"] = {
             "source": reply_source,
             "category": category
         }
+
+    response["conversation_id"] = str(conversation.id)
     
     return response
 
@@ -505,7 +548,7 @@ def ai_status(admin: User = Depends(get_admin)):
         model = "n/a"
 
     return {
-        "enabled": settings.ENABLE_LLM,
+        "enabled": _is_llm_enabled(),
         "provider": provider,
         "model": model,
         "api_key_configured": bool(settings.GROQ_API_KEY or settings.GEMINI_API_KEY or settings.OPENAI_API_KEY),
@@ -625,7 +668,8 @@ def update_user_role(
     db: Session = Depends(get_db),
     admin: User = Depends(get_admin)
 ):
-    if data.role not in ["admin", "user"]:
+    target_role = _normalize_role_value(data.role)
+    if target_role not in ["admin", "user"]:
         raise HTTPException(status_code=400, detail="Role must be 'admin' or 'user'")
 
     user = db.query(User).filter(User.id == user_id).first()
@@ -636,24 +680,24 @@ def update_user_role(
     is_actor_main = bool(main_admin and admin.id == main_admin.id)
     is_target_main = bool(main_admin and user.id == main_admin.id)
 
-    if is_target_main and not is_actor_main and data.role != "admin":
+    if is_target_main and not is_actor_main and target_role != "admin":
         raise HTTPException(status_code=403, detail="Only main admin can change main admin role")
 
     # Main admin can demote other admins. Non-main admins cannot demote other admins.
-    if user.role == "admin" and data.role == "user" and admin.id != user.id and not is_actor_main:
+    if _normalize_role_value(user.role) == "admin" and target_role == "user" and admin.id != user.id and not is_actor_main:
         raise HTTPException(status_code=403, detail="Only main admin can remove another admin role")
 
-    old_role  = user.role
-    user.role = data.role
+    old_role  = _normalize_role_value(user.role)
+    user.role = target_role
     db.commit()
 
     db.add(AuditLog(
         user_email = admin.email,
-        action     = f"Changed role of {user.email} from {old_role} to {data.role}"
+        action     = f"Changed role of {user.email} from {old_role} to {target_role}"
     ))
     db.commit()
 
-    return {"message": f"Role updated to {data.role}"}
+    return {"message": f"Role updated to {target_role}"}
 
 
 @app.patch("/admin/users/{user_id}/status")
@@ -675,7 +719,7 @@ def update_user_status(
         raise HTTPException(status_code=403, detail="Only main admin can block main admin account")
 
     # Main admin can block admin accounts. Non-main admins cannot block other admins.
-    if user.role == "admin" and data.is_active is False and admin.id != user.id and not is_actor_main:
+    if _normalize_role_value(user.role) == "admin" and data.is_active is False and admin.id != user.id and not is_actor_main:
         raise HTTPException(status_code=403, detail="Only main admin can block admin accounts")
 
     if admin.id == user.id and data.is_active is False:
