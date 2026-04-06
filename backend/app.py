@@ -337,6 +337,12 @@ def verify_otp(data: OtpVerify):
     return {"message": "OTP verified"}
 
 
+@app.get("/auth/registration-mode")
+def registration_mode():
+    """Expose registration mode so frontend can switch between OTP and direct signup."""
+    return {"otp_required": bool(settings.REQUIRE_REGISTRATION_OTP)}
+
+
 # ================================================================
 #  REGISTER
 # ================================================================
@@ -347,14 +353,15 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(func.lower(User.email) == email).first():
         raise HTTPException(status_code=400, detail="User already exists")
 
-    otp_record = otp_store.get(email)
-    if not otp_record:
-        raise HTTPException(status_code=400, detail="Please request OTP first")
-    if time.time() > otp_record["expires_at"]:
-        otp_store.pop(email, None)
-        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
-    if not otp_record.get("verified"):
-        raise HTTPException(status_code=400, detail="Please verify OTP before registration")
+    if settings.REQUIRE_REGISTRATION_OTP:
+        otp_record = otp_store.get(email)
+        if not otp_record:
+            raise HTTPException(status_code=400, detail="Please request OTP first")
+        if time.time() > otp_record["expires_at"]:
+            otp_store.pop(email, None)
+            raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+        if not otp_record.get("verified"):
+            raise HTTPException(status_code=400, detail="Please verify OTP before registration")
 
     if len(data.password.encode("utf-8")) > 72:
         raise HTTPException(status_code=400, detail="Password too long (max 72 bytes)")
@@ -368,8 +375,9 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
 
-    # Consume OTP after successful account creation.
-    otp_store.pop(email, None)
+    # Consume OTP after successful account creation when OTP mode is enabled.
+    if settings.REQUIRE_REGISTRATION_OTP:
+        otp_store.pop(email, None)
 
     return {"message": "Registered successfully"}
 

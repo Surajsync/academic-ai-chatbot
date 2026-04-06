@@ -269,7 +269,7 @@ body{
           <input type="text" id="rgName" placeholder="Your full name">
         </div>
         <div class="field">
-          <label>College / Faculty Email</label>
+          <label>Email</label>
           <input type="email" id="Id" placeholder="e.g. xyz@recb.ac.in" autocomplete="username">
         </div>
         <div class="field">
@@ -320,7 +320,7 @@ body{
           </p>
         </div>
         <div class="field">
-          <label>College / Faculty Email</label>
+          <label>Email</label>
           <input type="email" id="forgotEmail" placeholder="e.g. xyz@recb.ac.in" autocomplete="email" onkeydown="if(event.key==='Enter')sendPasswordReset()">
         </div>
         <div class="err" id="forgotErr">Please enter a valid email address.</div>
@@ -389,6 +389,24 @@ function togglePassword(inputId, buttonEl) {
 // OTP state
 let pendingReg = {};
 let resendCountdown = null;
+let otpRequiredForRegistration = false;
+
+async function loadRegistrationMode() {
+  try {
+    const res = await fetch(`${API_BASE}/auth/registration-mode`);
+    if (res.ok) {
+      const data = await res.json();
+      otpRequiredForRegistration = !!data.otp_required;
+    }
+  } catch {
+    otpRequiredForRegistration = false;
+  }
+
+  const btn = document.getElementById("sendOtpBtn");
+  if (btn) {
+    btn.textContent = otpRequiredForRegistration ? "Send OTP to Email →" : "Create Account →";
+  }
+}
 
 /* ─── TAB SWITCH ─── */
 function switchTab(tab) {
@@ -482,6 +500,24 @@ async function sendOtp() {
   btn.disabled = true;
 
   try {
+    if (!otpRequiredForRegistration) {
+      const rRes  = await fetch(`${API_BASE}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: name,
+          email,
+          password
+        })
+      });
+      const rData = await rRes.json();
+      if (!rRes.ok) throw new Error(rData.detail || "Registration failed");
+
+      showSuccess("Account created! Please sign in.");
+      setTimeout(() => switchTab("login"), 1800);
+      return;
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
 
@@ -510,7 +546,7 @@ async function sendOtp() {
       : (err.message || "Could not send OTP");
     errBox.style.display = "block";
   } finally {
-    btn.textContent = "Send OTP to Email →";
+    btn.textContent = otpRequiredForRegistration ? "Send OTP to Email →" : "Create Account →";
     btn.disabled = false;
   }
 }
@@ -653,6 +689,8 @@ function showSuccess(msg) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
 }
+
+loadRegistrationMode();
 
 </script>
 
