@@ -5,6 +5,7 @@ import secrets
 import smtplib
 import logging
 import socket
+import requests
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 
@@ -188,17 +189,42 @@ def _serialize_faq(faq: FAQ) -> dict:
 #  EMAIL HELPER
 # ================================================================
 def send_email(to: str, subject: str, body: str):
-    """Send email via Gmail SMTP. Raises HTTPException on failure."""
+    """Send email via Resend API (preferred) or Gmail SMTP fallback."""
+    
+    # Try Resend API first (works everywhere, including Render without port blocking)
+    if settings.RESEND_API_KEY:
+        try:
+            response = requests.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
+                json={
+                    "from": "noreply@recbijnor.onrender.com",
+                    "to": to,
+                    "subject": subject,
+                    "text": body
+                },
+                timeout=10
+            )
+            if response.status_code in (200, 201):
+                return
+            else:
+                logger.warning(f"Resend API error: {response.status_code} - {response.text}")
+        except Exception as err:
+            logger.warning(f"Resend API failed: {err}. Falling back to SMTP.")
+    
+    # Fall back to SMTP if Resend unavailable or failed
     if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
-        raise HTTPException(status_code=500, detail="Email credentials are not configured")
+        raise HTTPException(
+            status_code=500,
+            detail="Email service not configured. Contact admin."
+        )
 
     msg = MIMEText(body)
     msg["Subject"] = subject
     msg["From"] = GMAIL_ADDRESS
     msg["To"] = to
 
-    # Try both common Gmail SMTP paths because some hosts block specific ports.
-    # Keep per-attempt timeout low so API returns before frontend request timeout.
+    # Try both common Gmail SMTP paths
     send_attempts: list[tuple[str, int]] = [("ssl", 465), ("starttls", 587)]
     smtp_timeout_seconds = 8
     errors: list[str] = []
@@ -220,7 +246,6 @@ def send_email(to: str, subject: str, body: str):
         except (socket.timeout, TimeoutError):
             errors.append(f"{mode}:{port}: timeout")
         except OSError as err:
-            # Common deployment failure: network/egress blocked to SMTP endpoint.
             errors.append(f"{mode}:{port}: os_error={err}")
             if "network is unreachable" in str(err).lower() or getattr(err, "errno", None) == 101:
                 break
@@ -234,7 +259,7 @@ def send_email(to: str, subject: str, body: str):
     if "network is unreachable" in lower_error_text or "errno 101" in lower_error_text:
         raise HTTPException(
             status_code=503,
-            detail="Email network unreachable from server. Check hosting outbound SMTP access (ports 465/587) or use a transactional email provider.",
+            detail="SMTP network blocked. Add RESEND_API_KEY to .env for email service."
         )
     if "timeout" in lower_error_text:
         raise HTTPException(status_code=504, detail="Email server timeout. Please try again.")

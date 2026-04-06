@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     GMAIL_ADDRESS: str | None = None
     GMAIL_APP_PASSWORD: str | None = None
+    RESEND_API_KEY: str | None = None
     RESET_TOKEN_EXPIRE_MINS: int = 15
     APP_BASE_URL: str
 
