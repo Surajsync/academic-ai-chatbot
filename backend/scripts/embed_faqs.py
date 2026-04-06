@@ -1,29 +1,20 @@
 from sentence_transformers import SentenceTransformer
-import pandas as pd
-import os
+from backend.database.database import SessionLocal
+from backend.database.models import FAQ
 
-model = None
+print("Loading embedding model...")
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
-def get_model():
-    global model
-    if model is None:
-        print("Loading embedding model...")
-        model = SentenceTransformer('all-MiniLM-L6-v2')
-    return model
+db = SessionLocal()
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+faqs = db.query(FAQ).all()
+print(f"Found {len(faqs)} FAQs")
 
-csv_path = os.path.join(BASE_DIR, "data", "faq_optimized.csv")
+for faq in faqs:
+    embedding = model.encode(faq.question).tolist()
+    faq.embedding = embedding
 
-output_path = os.path.join(BASE_DIR, "data", "faq_with_embeddings.json")
+db.commit()
+db.close()
 
-df = pd.read_csv(csv_path)
-
-def create_embeddings(text):
-    return get_model().encode(text).tolist()
-
-print("Creating embeddings...")
-df['embedding'] = df['question'].apply(create_embeddings)
-df.to_json(output_path, orient='records', indent=2)
-
-print("Done! Saved file.")
+print("✅ Embeddings stored in DB")

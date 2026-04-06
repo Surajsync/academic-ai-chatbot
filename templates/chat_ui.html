@@ -587,10 +587,10 @@ async function loadConversationsFromBackend() {
             const formattedConvs = conversations.map(conv => ({
               id: normalizeConversationId(conv.id),
                 title: conv.title,
-                messages: conv.messages.map(msg => ({
-                    role: msg.role,
-                text: msg.text || msg.content || ""
-                })),
+            messages: (Array.isArray(conv.messages) ? conv.messages : []).map(msg => ({
+              role: msg.role === "user" ? "user" : "bot",
+              text: msg.text || msg.content || ""
+            })),
                 pinned: false,
                 archived: false
             }));
@@ -649,7 +649,7 @@ state.conversations = state.conversations.map(conv => ({
   ...conv,
   id: normalizeConversationId(conv.id),
   messages: (conv.messages || []).map(msg => ({
-    role: msg.role,
+    role: msg.role === "user" ? "user" : "bot",
     text: msg.text || msg.content || ""
   }))
 }));
@@ -661,7 +661,7 @@ function updateState(newState = {}) {
     ...conv,
     id: normalizeConversationId(conv.id),
     messages: (conv.messages || []).map(msg => ({
-      role: msg.role,
+      role: msg.role === "user" ? "user" : "bot",
       text: msg.text || msg.content || ""
     }))
   }));
@@ -838,13 +838,19 @@ function loadConversation(id) {
 
     chatBox.innerHTML = "";
 
+    if (!Array.isArray(conv.messages) || conv.messages.length === 0) {
+        showWelcomePrompt();
+        return;
+    }
+
     conv.messages.forEach(msg => {
+        const role = msg.role === "user" ? "user" : "bot";
         const bubble = document.createElement("div");
-        bubble.className = "message " + msg.role;
+        bubble.className = "message " + role;
       const safeText = msg.text || msg.content || "";
         
         // For bot messages, use innerHTML to support formatted text
-        if (msg.role === "bot") {
+        if (role === "bot") {
         bubble.innerHTML = safeText
           .replace(/\n/g, '<br>')
           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')

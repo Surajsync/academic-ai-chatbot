@@ -564,15 +564,24 @@ async function resendOtp() {
   document.getElementById("otpErr").style.display = "none";
   document.getElementById("otpInput").value = "";
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
     const res = await fetch(`${API_BASE}/auth/send-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: pendingReg.email })
+      body: JSON.stringify({ email: pendingReg.email }),
+      signal: controller.signal
     });
-    if (!res.ok) throw new Error("Failed");
+    clearTimeout(timeoutId);
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Could not resend OTP");
     startResendTimer(60);
-  } catch {
-    document.getElementById("otpErr").textContent = "Could not resend OTP. Try again.";
+  } catch (err) {
+    document.getElementById("otpErr").textContent = err?.name === "AbortError"
+      ? "Resend request timed out. Please try again."
+      : (err.message || "Could not resend OTP. Try again.");
     document.getElementById("otpErr").style.display = "block";
   }
 }
