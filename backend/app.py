@@ -189,22 +189,52 @@ def _serialize_faq(faq: FAQ) -> dict:
 # ================================================================
 def send_email(to: str, subject: str, body: str):
     """Send email via Gmail SMTP. Raises HTTPException on failure."""
-    try:
-        if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
-            raise HTTPException(status_code=500, detail="Email credentials are not configured")
+    if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
+        raise HTTPException(status_code=500, detail="Email credentials are not configured")
 
-        msg = MIMEText(body)
-        msg["Subject"] = subject
-        msg["From"]    = GMAIL_ADDRESS
-        msg["To"]      = to
-        # Fail fast on provider/network issues so frontend does not hang on "Sending..."
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
-            server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
-            server.send_message(msg)
-    except (socket.timeout, TimeoutError):
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = GMAIL_ADDRESS
+    msg["To"] = to
+
+    # Try both common Gmail SMTP paths because some hosts block specific ports.
+    send_attempts: list[tuple[str, int]] = [("ssl", 465), ("starttls", 587)]
+    errors: list[str] = []
+
+    for mode, port in send_attempts:
+        try:
+            if mode == "ssl":
+                with smtplib.SMTP_SSL("smtp.gmail.com", port, timeout=15) as server:
+                    server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP("smtp.gmail.com", port, timeout=15) as server:
+                    server.ehlo()
+                    server.starttls()
+                    server.ehlo()
+                    server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+                    server.send_message(msg)
+            return
+        except (socket.timeout, TimeoutError):
+            errors.append(f"{mode}:{port}: timeout")
+        except OSError as err:
+            # Common deployment failure: network/egress blocked to SMTP endpoint.
+            errors.append(f"{mode}:{port}: os_error={err}")
+        except smtplib.SMTPException as err:
+            errors.append(f"{mode}:{port}: smtp_error={err}")
+        except Exception as err:
+            errors.append(f"{mode}:{port}: unexpected={err}")
+
+    error_text = " | ".join(errors)
+    lower_error_text = error_text.lower()
+    if "network is unreachable" in lower_error_text or "errno 101" in lower_error_text:
+        raise HTTPException(
+            status_code=503,
+            detail="Email network unreachable from server. Check hosting outbound SMTP access (ports 465/587) or use a transactional email provider.",
+        )
+    if "timeout" in lower_error_text:
         raise HTTPException(status_code=504, detail="Email server timeout. Please try again.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Email error: {str(e)}")
+    raise HTTPException(status_code=500, detail=f"Email error: {error_text}")
 
 
 # ================================================================
