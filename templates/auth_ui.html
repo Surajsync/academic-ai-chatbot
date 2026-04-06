@@ -276,7 +276,7 @@ body{
           <label>Password</label>
           <div class="password-wrap">
             <input type="password" id="rgPass" placeholder="Create a strong password">
-            <button type="button" class="toggle-eye" onclick="togglePassword('rgPass', this)">Eye Show</button>
+            <button type="button" class="toggle-eye" onclick="togglePassword('rgPass', this)">Show</button>
           </div>
         </div>
         <div class="err" id="rgErr">Please fill in all fields correctly.</div>
@@ -383,7 +383,7 @@ function togglePassword(inputId, buttonEl) {
   if (!input || !buttonEl) return;
   const showing = input.type === "text";
   input.type = showing ? "password" : "text";
-  buttonEl.textContent = showing ? "Eye Show" : "Eye Hide";
+  buttonEl.textContent = showing ? "Show" : "Hide";
 }
 
 // OTP state
