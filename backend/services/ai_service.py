@@ -3,7 +3,7 @@ from backend.config import settings
 
 def generate_answer(context, query):
     if not context:
-        return "I don't have information about that in the college database. Please contact the relevant department or admin office for assistance."
+        return "No specific college data available. Please contact the relevant department or admin office for assistance."
 
     if not settings.GROQ_API_KEY:
         raise RuntimeError("GROQ_API_KEY is not configured")
@@ -51,7 +51,7 @@ GUIDELINES:
             },
             {
                 "role": "user",
-                "content": prompt
+                "content": f"Context:\n{context}\n\nQuestion:\n{query}\n\nPlease provide a concise and informative answer based on the context. If the information is not available, suggest the appropriate department to contact."
             }
         ]
     )

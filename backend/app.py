@@ -4,6 +4,7 @@ import time
 import secrets
 import smtplib
 import logging
+import socket
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 
@@ -196,9 +197,12 @@ def send_email(to: str, subject: str, body: str):
         msg["Subject"] = subject
         msg["From"]    = GMAIL_ADDRESS
         msg["To"]      = to
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        # Fail fast on provider/network issues so frontend does not hang on "Sending..."
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
             server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
             server.send_message(msg)
+    except (socket.timeout, TimeoutError):
+        raise HTTPException(status_code=504, detail="Email server timeout. Please try again.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Email error: {str(e)}")
 

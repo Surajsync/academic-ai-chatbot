@@ -482,11 +482,17 @@ async function sendOtp() {
   btn.disabled = true;
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
     const res  = await fetch(`${API_BASE}/auth/send-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
+
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Could not send OTP");
 
@@ -499,7 +505,9 @@ async function sendOtp() {
     startResendTimer(60);
 
   } catch (err) {
-    errBox.textContent = err.message;
+    errBox.textContent = err?.name === "AbortError"
+      ? "OTP request timed out. Please try again."
+      : (err.message || "Could not send OTP");
     errBox.style.display = "block";
   } finally {
     btn.textContent = "Send OTP to Email →";
