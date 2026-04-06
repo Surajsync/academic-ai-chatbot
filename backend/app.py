@@ -192,12 +192,16 @@ def send_email(to: str, subject: str, body: str):
     """Send email via Resend API (preferred) or Gmail SMTP fallback."""
     
     # Try Resend API first (works everywhere, including Render without port blocking)
-    if settings.RESEND_API_KEY:
+    resend_api_key = (settings.RESEND_API_KEY or "").strip().strip('"').strip("'")
+    if resend_api_key.lower().startswith("bearer "):
+        resend_api_key = resend_api_key[7:].strip()
+
+    if resend_api_key:
         resend_from = settings.RESEND_FROM_EMAIL or "onboarding@resend.dev"
         try:
             response = requests.post(
                 "https://api.resend.com/emails",
-                headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
+                headers={"Authorization": f"Bearer {resend_api_key}"},
                 json={
                     "from": resend_from,
                     "to": to,
