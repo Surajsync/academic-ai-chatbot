@@ -176,17 +176,17 @@ html,body{
   font-size:13px;
 }
 
-.chat-tools{
+
+.chat-toolbar{
   display:flex;
-  gap:10px;
+  gap:12px;
   align-items:center;
   margin:10px 0 14px;
-  flex-wrap:wrap;
 }
 
 .tool-search{
   flex:1;
-  min-width:220px;
+  min-width:240px;
   background:var(--ink2);
   border:1px solid var(--border-subtle);
   color:var(--cream);
@@ -195,19 +195,84 @@ html,body{
   padding:0 12px;
 }
 
-.tool-btn{
+.chat-menu-wrap{
+  position:relative;
+}
+
+.chat-options-btn{
   border:none;
-  border-radius:10px;
+  border-radius:12px;
   height:40px;
+  min-width:44px;
   padding:0 12px;
   cursor:pointer;
   color:var(--cream);
   background:rgba(255,255,255,0.06);
   border:1px solid var(--border-subtle);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:700;
+  letter-spacing:0.4px;
 }
 
-.tool-btn:hover{
+.chat-options-btn:hover{
+  background:rgba(232,130,12,0.14);
+}
+
+.selected-chip{
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:600;
+  color:#fff;
+  background:rgba(232,130,12,0.9);
+}
+
+.is-hidden{
+  display:none !important;
+}
+
+.chat-options-dropdown{
+  position:absolute;
+  right:0;
+  top:48px;
+  width:230px;
+  background:rgba(15,23,42,0.98);
+  border:1px solid var(--border-subtle);
+  border-radius:12px;
+  box-shadow:0 18px 40px rgba(0,0,0,0.42);
+  display:none;
+  flex-direction:column;
+  overflow:hidden;
+  z-index:250;
+}
+
+.chat-options-dropdown.open{
+  display:flex;
+}
+
+.chat-option-item{
+  border:none;
+  background:transparent;
+  color:var(--cream);
+  text-align:left;
+  padding:11px 12px;
+  font-size:13px;
+  cursor:pointer;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+.chat-option-item:last-child{
+  border-bottom:none;
+}
+
+.chat-option-item:hover{
   background:rgba(232,130,12,0.12);
+}
+
+.chat-option-item.danger{
+  color:#fda4af;
 }
 
 .header-actions .profile-edit-btn{
@@ -571,6 +636,10 @@ html,body{
   align-items:flex-start;
 }
 
+.chat-box.select-mode .message-row{
+  cursor:pointer;
+}
+
 .message-row.user-row{
   justify-content:flex-end;
 }
@@ -585,6 +654,10 @@ html,body{
   height:16px;
   accent-color:var(--saffron);
   cursor:pointer;
+}
+
+.message.selected{
+  box-shadow:0 0 0 2px rgba(232,130,12,0.55);
 }
 
 @keyframes smoothAppear{
@@ -791,15 +864,25 @@ html,body{
     </div>
 
     <div class="header-actions">
-      <button class="chat-delete-btn" id="delete-selected-messages-btn" type="button">Delete Selected Messages</button>
+      <div class="chat-menu-wrap" id="chat-menu-wrap">
+        <button id="chat-options-btn" class="chat-options-btn" type="button" aria-label="Chat options">
+          <span>⋯</span>
+          <span id="selected-count-chip" class="selected-chip is-hidden">0</span>
+        </button>
+        <div id="chat-options-dropdown" class="chat-options-dropdown">
+          <button class="chat-option-item" data-chat-action="toggle-select-mode">Enable Selection</button>
+          <button class="chat-option-item" data-chat-action="select-all">Select All Messages</button>
+          <button class="chat-option-item" data-chat-action="unselect-all">Unselect All</button>
+          <button class="chat-option-item danger" data-chat-action="delete-selected">Delete Selected</button>
+          <button class="chat-option-item" data-chat-action="export-chat">Export Chat</button>
+          <button class="chat-option-item danger" data-chat-action="clear-chat">Clear Chat</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="chat-tools">
+  <div class="chat-toolbar">
     <input id="chat-search-input" class="tool-search" type="text" placeholder="Search in this chat...">
-    <button id="select-all-messages-btn" class="tool-btn" type="button">Select All</button>
-    <button id="clear-chat-messages-btn" class="tool-btn" type="button">Clear Chat</button>
-    <button id="export-chat-btn" class="tool-btn" type="button">Export Chat</button>
   </div>
 
   <div class="chat-box" id="chat-box"></div>
@@ -844,11 +927,11 @@ const input = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
 const conversationList = document.getElementById("conversation-list");
 const editProfileBtn = document.getElementById("edit-profile-btn");
-const deleteSelectedMessagesBtn = document.getElementById("delete-selected-messages-btn");
 const chatSearchInput = document.getElementById("chat-search-input");
-const selectAllMessagesBtn = document.getElementById("select-all-messages-btn");
-const clearChatMessagesBtn = document.getElementById("clear-chat-messages-btn");
-const exportChatBtn = document.getElementById("export-chat-btn");
+const chatOptionsBtn = document.getElementById("chat-options-btn");
+const chatOptionsDropdown = document.getElementById("chat-options-dropdown");
+const chatMenuWrap = document.getElementById("chat-menu-wrap");
+const selectedCountChip = document.getElementById("selected-count-chip");
 const profileAvatarSlot = document.getElementById("profile-avatar-slot");
 const profileCardName = document.getElementById("profile-card-name");
 const profileCardSubtitle = document.getElementById("profile-card-subtitle");
@@ -889,13 +972,12 @@ enforceChatAccess();
 loadUserProfile();
 
 editProfileBtn?.addEventListener("click", openProfileModal);
-deleteSelectedMessagesBtn?.addEventListener("click", deleteSelectedMessages);
 chatSearchInput?.addEventListener("input", () => {
   loadConversation(state.currentConversationId, { preserveSelection: true });
 });
-selectAllMessagesBtn?.addEventListener("click", selectAllMessagesInCurrentChat);
-clearChatMessagesBtn?.addEventListener("click", clearCurrentChatMessages);
-exportChatBtn?.addEventListener("click", exportCurrentChat);
+chatOptionsBtn?.addEventListener("click", toggleChatOptionsMenu);
+chatOptionsDropdown?.addEventListener("click", handleChatOptionsClick);
+document.addEventListener("click", handleDocumentClick);
 
 // ================= LOAD CONVERSATIONS FROM BACKEND =================
 async function loadConversationsFromBackend() {
@@ -958,7 +1040,8 @@ const state = {
   archivedExpanded: false,
   profile: null,
   selectedMessageIds: new Set(),
-  activeRenderedConversationId: null
+  activeRenderedConversationId: null,
+  selectMode: false
 };
 
 function normalizeConversationId(id) {
@@ -1249,10 +1332,85 @@ async function deleteConversationById(id) {
 
 function clearSelectedMessages() {
   state.selectedMessageIds = new Set();
+  updateSelectionBadge();
 }
 
 function getCurrentSearchQuery() {
   return String(chatSearchInput?.value || "").trim().toLowerCase();
+}
+
+function updateSelectionBadge() {
+  const count = state.selectedMessageIds.size;
+  if (!selectedCountChip) return;
+  if (count > 0) {
+    selectedCountChip.style.display = "inline-flex";
+    selectedCountChip.textContent = String(count);
+  } else {
+    selectedCountChip.style.display = "none";
+    selectedCountChip.textContent = "0";
+  }
+
+  const toggleLabel = chatOptionsDropdown?.querySelector('[data-chat-action="toggle-select-mode"]');
+  if (toggleLabel) {
+    toggleLabel.textContent = state.selectMode ? "Disable Selection" : "Enable Selection";
+  }
+}
+
+function toggleChatOptionsMenu(event) {
+  event?.stopPropagation();
+  chatOptionsDropdown?.classList.toggle("open");
+  updateSelectionBadge();
+}
+
+function closeChatOptionsMenu() {
+  chatOptionsDropdown?.classList.remove("open");
+}
+
+function handleDocumentClick(event) {
+  if (chatMenuWrap && !chatMenuWrap.contains(event.target)) {
+    closeChatOptionsMenu();
+  }
+}
+
+function handleChatOptionsClick(event) {
+  const actionButton = event.target.closest("[data-chat-action]");
+  if (!actionButton) return;
+  const action = actionButton.getAttribute("data-chat-action");
+
+  switch (action) {
+    case "toggle-select-mode":
+      setSelectMode(!state.selectMode);
+      break;
+    case "select-all":
+      setSelectMode(true);
+      selectAllMessagesInCurrentChat();
+      break;
+    case "unselect-all":
+      unselectAllMessagesInCurrentChat();
+      break;
+    case "delete-selected":
+      deleteSelectedMessages();
+      break;
+    case "export-chat":
+      exportCurrentChat();
+      break;
+    case "clear-chat":
+      clearCurrentChatMessages();
+      break;
+    default:
+      break;
+  }
+
+  closeChatOptionsMenu();
+}
+
+function setSelectMode(enabled) {
+  state.selectMode = Boolean(enabled);
+  if (!state.selectMode) {
+    clearSelectedMessages();
+  }
+  loadConversation(state.currentConversationId, { preserveSelection: true });
+  updateSelectionBadge();
 }
 
 function toggleMessageSelection(messageId, isSelected) {
@@ -1264,6 +1422,8 @@ function toggleMessageSelection(messageId, isSelected) {
   } else {
     state.selectedMessageIds.delete(normalizedId);
   }
+
+  updateSelectionBadge();
 }
 
 async function deleteSelectedMessages() {
@@ -1329,10 +1489,13 @@ function selectAllMessagesInCurrentChat() {
     const mid = getMessageId(msg, idx);
     state.selectedMessageIds.add(mid);
   });
+  updateSelectionBadge();
+  loadConversation(state.currentConversationId, { preserveSelection: true });
+}
 
-  document.querySelectorAll(".msg-select").forEach(box => {
-    box.checked = true;
-  });
+function unselectAllMessagesInCurrentChat() {
+  clearSelectedMessages();
+  loadConversation(state.currentConversationId, { preserveSelection: true });
 }
 
 async function clearCurrentChatMessages() {
@@ -1425,6 +1588,8 @@ const academicStarters = [
 function createNewConversation() {
 
   clearSelectedMessages();
+  state.selectMode = false;
+  updateSelectionBadge();
 
     // Remove previous empty conversation if exists
     if (state.currentConversationId) {
@@ -1586,6 +1751,7 @@ function loadConversation(id, options = {}) {
     state.activeRenderedConversationId = incomingId;
 
     chatBox.innerHTML = "";
+    chatBox.classList.toggle("select-mode", state.selectMode);
 
     if (!Array.isArray(conv.messages) || conv.messages.length === 0) {
         showWelcomePrompt();
@@ -1603,17 +1769,16 @@ function loadConversation(id, options = {}) {
       const row = document.createElement("div");
       row.className = `message-row ${role}-row`;
 
-      const selectBox = document.createElement("input");
-      selectBox.type = "checkbox";
-      selectBox.className = "msg-select";
-      selectBox.checked = state.selectedMessageIds.has(messageId);
-      selectBox.addEventListener("change", () => {
-        toggleMessageSelection(messageId, selectBox.checked);
-      });
-
       const bubble = document.createElement("div");
       bubble.className = "message " + role;
       if (isSearchHit) bubble.classList.add("search-hit");
+      if (state.selectedMessageIds.has(messageId)) bubble.classList.add("selected");
+      bubble.addEventListener("click", () => {
+        if (!state.selectMode) return;
+        const shouldSelect = !state.selectedMessageIds.has(messageId);
+        toggleMessageSelection(messageId, shouldSelect);
+        loadConversation(state.currentConversationId, { preserveSelection: true });
+      });
 
       if (role === "bot") {
         bubble.innerHTML = safeText
@@ -1624,12 +1789,26 @@ function loadConversation(id, options = {}) {
         bubble.textContent = safeText;
       }
 
-      if (role === "user") {
-        row.appendChild(selectBox);
-        row.appendChild(bubble);
+      if (state.selectMode) {
+        const selectBox = document.createElement("input");
+        selectBox.type = "checkbox";
+        selectBox.className = "msg-select";
+        selectBox.checked = state.selectedMessageIds.has(messageId);
+        selectBox.addEventListener("click", e => e.stopPropagation());
+        selectBox.addEventListener("change", () => {
+          toggleMessageSelection(messageId, selectBox.checked);
+          loadConversation(state.currentConversationId, { preserveSelection: true });
+        });
+
+        if (role === "user") {
+          row.appendChild(selectBox);
+          row.appendChild(bubble);
+        } else {
+          row.appendChild(bubble);
+          row.appendChild(selectBox);
+        }
       } else {
         row.appendChild(bubble);
-        row.appendChild(selectBox);
       }
 
       chatBox.appendChild(row);
