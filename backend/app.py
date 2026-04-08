@@ -5,11 +5,12 @@ import secrets
 import smtplib
 import logging
 import socket
+import base64
 import requests
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -21,7 +22,7 @@ from jose import JWTError, jwt
 
 from backend.config import settings
 from backend.database.database import SessionLocal, engine
-from backend.database.models import Base, User, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken
+from backend.database.models import Base, User, UserProfile, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken
 from backend.security.security import hash_password, verify_password
 from backend.services.auth_service import create_access_token
 from backend.services.chatbot_service import generate_reply_with_source
@@ -55,6 +56,8 @@ app.include_router(chat_routes.router)
 def initialize_database() -> None:
     try:
         Base.metadata.create_all(bind=engine)
+        with SessionLocal() as db:
+            _normalize_faq_activation(db)
         logger.info("Database schema initialized")
     except Exception:
         # Do not block server startup; this keeps the process listening on PORT.
@@ -183,6 +186,47 @@ def _serialize_faq(faq: FAQ) -> dict:
         "response": _faq_response_value(faq),
         "is_active": bool(getattr(faq, "is_active", True)),
     }
+
+
+def _serialize_profile(profile: UserProfile | None, user: User) -> dict:
+    profile = profile or UserProfile()
+    return {
+        "display_name": profile.display_name or user.username,
+        "phone": profile.phone or "",
+        "department": profile.department or "",
+        "semester": profile.semester or "",
+        "year": profile.year or "",
+        "roll_number": profile.roll_number or "",
+        "location": profile.location or "",
+        "linkedin": profile.linkedin or "",
+        "website": profile.website or "",
+        "bio": profile.bio or "",
+        "photo_data": profile.photo_data or "",
+        "photo_mime": profile.photo_mime or "",
+        "email": user.email,
+        "username": user.username,
+    }
+
+
+def _normalize_faq_activation(db: Session) -> None:
+    try:
+        db.query(FAQ).filter(FAQ.is_active.is_(None)).update({FAQ.is_active: True}, synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Legacy FAQ activation normalization failed")
+
+
+def _ensure_profile(db: Session, user: User) -> UserProfile:
+    profile = db.query(UserProfile).filter(UserProfile.user_id == user.id).first()
+    if profile:
+        return profile
+
+    profile = UserProfile(user_id=user.id, display_name=user.username)
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return profile
 
 
 # ================================================================
@@ -434,6 +478,56 @@ def auth_me(user: User = Depends(get_current_user)):
     }
 
 
+@app.get("/profile/me")
+def get_my_profile(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    profile = db.query(UserProfile).filter(UserProfile.user_id == user.id).first()
+    if not profile:
+        profile = _ensure_profile(db, user)
+    return _serialize_profile(profile, user)
+
+
+@app.put("/profile/me")
+def update_my_profile(
+    display_name: str | None = Form(default=None),
+    phone: str | None = Form(default=None),
+    department: str | None = Form(default=None),
+    semester: str | None = Form(default=None),
+    year: str | None = Form(default=None),
+    roll_number: str | None = Form(default=None),
+    location: str | None = Form(default=None),
+    linkedin: str | None = Form(default=None),
+    website: str | None = Form(default=None),
+    bio: str | None = Form(default=None),
+    profile_photo: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    profile = _ensure_profile(db, user)
+
+    profile.display_name = display_name.strip() if display_name else profile.display_name
+    profile.phone = phone.strip() if phone else profile.phone
+    profile.department = department.strip() if department else profile.department
+    profile.semester = semester.strip() if semester else profile.semester
+    profile.year = year.strip() if year else profile.year
+    profile.roll_number = roll_number.strip() if roll_number else profile.roll_number
+    profile.location = location.strip() if location else profile.location
+    profile.linkedin = linkedin.strip() if linkedin else profile.linkedin
+    profile.website = website.strip() if website else profile.website
+    profile.bio = bio.strip() if bio else profile.bio
+
+    if profile_photo and profile_photo.filename:
+        content = profile_photo.file.read()
+        encoded_photo = base64.b64encode(content).decode("utf-8")
+        mime_type = profile_photo.content_type or "image/jpeg"
+        profile.photo_data = f"data:{mime_type};base64,{encoded_photo}"
+        profile.photo_mime = mime_type
+
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return _serialize_profile(profile, user)
+
+
 # ================================================================
 #  FORGOT PASSWORD — sends reset link to email
 # ================================================================
@@ -604,6 +698,26 @@ def get_chat_history(db: Session = Depends(get_db), user: User = Depends(get_cur
     return result
 
 
+@app.delete("/chat/conversations/{conversation_id}")
+def delete_chat_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    conversation = db.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.user_id == user.id,
+    ).first()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    db.query(Message).filter(Message.conversation_id == conversation.id).delete(synchronize_session=False)
+    db.delete(conversation)
+    db.commit()
+
+    return {"message": "Conversation deleted successfully"}
+
+
 # ================================================================
 #  ADMIN — DASHBOARD STATS
 # ================================================================
@@ -665,6 +779,8 @@ def add_faq(data: FaqCreate, db: Session = Depends(get_db), admin: User = Depend
         create_kwargs["response"] = data.response
     if hasattr(FAQ, "answer"):
         create_kwargs["answer"] = data.response
+    if hasattr(FAQ, "is_active"):
+        create_kwargs["is_active"] = True
 
     faq = FAQ(**create_kwargs)
     db.add(faq)

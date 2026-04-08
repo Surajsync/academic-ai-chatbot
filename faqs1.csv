@@ -1,0 +1,126 @@
+id,conversation_id,role,content,feedback,timestamp
+1,1,user,Hii,,2026-04-05 13:29:40.327562
+2,1,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-05 13:29:40.841482
+3,2,user,Hlo,,2026-04-05 13:29:47.454611
+4,2,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-05 13:29:47.865181
+5,3,user,hello,,2026-04-05 13:29:54.14756
+6,3,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-05 13:29:54.574477
+7,4,user,Hii,,2026-04-05 13:44:20.126335
+8,4,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-05 13:44:20.499412
+9,5,user,Hii,,2026-04-05 14:26:59.043712
+10,5,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-05 14:26:59.46206
+11,6,user,Hii,,2026-04-05 14:38:10.710357
+12,6,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-05 14:38:11.066177
+13,7,user,Hello,,2026-04-05 14:43:49.025273
+14,7,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-05 14:43:49.395025
+15,8,user,Hii,,2026-04-05 14:43:53.179825
+16,8,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-05 14:43:53.551038
+17,9,user,Hello,,2026-04-05 15:41:43.733221
+18,9,bot,"Hello! I can help with REC Bijnor information like departments, fees, placements, clubs, and scholarships. What would you like to know?",,2026-04-05 15:41:43.89309
+19,10,user,Who are you?,,2026-04-05 15:41:52.790846
+20,11,user,tell me,,2026-04-05 15:42:07.856898
+21,12,user,Who are you?,,2026-04-05 16:07:16.719799
+22,13,user,Hii,,2026-04-05 16:07:28.411544
+23,13,bot,"Hello! I can help with REC Bijnor information like departments, fees, placements, clubs, and scholarships. What would you like to know?",,2026-04-05 16:07:28.616997
+24,14,user,Help,,2026-04-05 16:07:37.909161
+25,15,user,Help,,2026-04-05 16:08:50.836863
+26,16,user,Hii,,2026-04-06 03:25:06.316432
+27,16,bot,"Hello! I can help with REC Bijnor information like departments, fees, placements, clubs, and scholarships. What would you like to know?",,2026-04-06 03:25:06.483919
+28,17,user,Helo,,2026-04-06 03:25:12.165769
+29,18,user,who are you?,,2026-04-06 03:25:23.731422
+30,19,user,Hii,,2026-04-06 09:31:00.232191
+31,19,bot,"Hello! I can help with REC Bijnor information like departments, fees, placements, clubs, and scholarships. What would you like to know?",,2026-04-06 09:31:00.242108
+32,19,user,Hello,,2026-04-06 09:31:03.824062
+33,19,bot,"Hello! I can help with REC Bijnor information like departments, fees, placements, clubs, and scholarships. What would you like to know?",,2026-04-06 09:31:03.831696
+34,19,user,who are you?,,2026-04-06 09:31:08.291933
+35,19,bot,"I am the friendly and knowledgeable college assistant at REC Bijnor, a Government Engineering Institute. I am here to provide you with accurate and helpful information about the college.",,2026-04-06 09:31:09.651009
+36,19,user,who is ishan?,,2026-04-06 09:31:18.604818
+37,19,bot,"I'm not aware of any information about a person named Ishan in our college records. However, I can suggest contacting the Student Affairs or Admission Department for more information about current students or alumni with the name Ishan. They may be able to provide more details or direct you to the relevant person.",,2026-04-06 09:31:19.426632
+38,19,user,HOD of it?,,2026-04-06 09:31:32.03806
+39,19,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-06 09:31:32.047844
+40,20,user,???,,2026-04-06 09:32:27.135088
+41,20,bot,"Welcome to REC Bijnor. I'm happy to assist you. However, you haven't asked a question yet. Please feel free to ask, and I'll do my best to provide you with accurate and helpful information. If I'm unsure or don't have the information, I'll suggest the appropriate department to contact.",,2026-04-06 09:32:27.820028
+42,21,user,werfg,,2026-04-06 09:32:30.565057
+43,21,bot,"It seems like there might have been a typo in your question. Unfortunately, I couldn't find any relevant information related to ""werfg.""
+
+If you could provide more context or clarify what you are looking for, I'll be happy to assist you. Alternatively, you can also contact the following departments for more information:
+
+- Admission Department: For queries related to admission, eligibility, and application process.
+- Academic Department: For information on courses, curriculum, and academic policies.
+- Student Support Services: For assistance with student life, counseling, and other student-related matters.
+
+Please feel free to ask your question again, and I'll do my best to provide a helpful response.",,2026-04-06 09:32:31.641416
+44,22,user,Hii,,2026-04-06 10:49:52.285863
+45,22,bot,"Hello! I can help with REC Bijnor information like departments, fees, placements, clubs, and scholarships. What would you like to know?",,2026-04-06 10:49:52.303637
+46,22,user,Who are you?,,2026-04-06 10:50:11.949879
+47,22,bot,Hello! I am the friendly and knowledgeable college assistant at REC Bijnor. I am here to provide you with accurate and helpful information about our college.,,2026-04-06 10:50:13.792198
+48,22,user,Tum kya kr skte ho?,,2026-04-06 10:50:33.481978
+49,22,bot,"Aapki madad karne ke liye humari samarthya hai.
+
+Hum REC Bijnor mein aapko yeh jankari pradan kar sakte hain:
+
+- AICTE (All India Council for Technical Education) ke dwara sanrakshit hain.
+- AKTU, Lucknow (Dr. A.P.J. Abdul Kalam Technical University) ke saath sambandhit hain.
+
+Agar aapko koi vishesh jankari chahiye, to kripaya humare sahayak vibhag ke saath sambandh karke unse sampark karein.",,2026-04-06 10:50:34.579959
+50,22,user,Kya haal h tumhara?,,2026-04-06 10:51:33.115298
+51,22,bot,"Main theek hoon. Rajkiya Engineering College, Bijnor ke bare mein aapko sabhi jankari uplabdh hai. Yahaan aapko college ki pramukh visheshtaein aur pramanikta ke bare mein jaankari mil sakti hai. Agar aapko koi vishesh jankari chahti hai, to aap mujhe puch sakte hain.",,2026-04-06 10:51:34.065635
+52,22,user,Ishan kon h?,,2026-04-06 10:52:25.761776
+53,22,bot,"Aapka sawal hai, ""Ishan kon h?""
+
+Jawab hai, ismein koi vishesh ishan ke bare mein pata nahin chal sakta. Lekin aap REC Bijnor ke official website ya contact number par samachar kar sakte hain.
+
+Agar aapko koi vishesh jankari chahiye, to aap college ke administrative department ya public relations department se sampark kar sakte hain.",,2026-04-06 10:52:26.684127
+54,22,user,It ka HOD kon h?,,2026-04-06 10:52:51.470942
+55,22,bot,I don't have information about that in the college database. Please contact the Admin Office or the relevant department for assistance. You can also visit the college website or reach out to Student Services.,,2026-04-06 10:52:51.482365
+56,23,user,Mera naam kya h?,,2026-04-06 10:55:35.094985
+57,23,bot,"Main aapko REC Bijnor ki official college information pradan karta hoon.
+
+Mera naam hai: College Assistant, REC Bijnor.",,2026-04-06 10:55:35.79544
+58,23,user,Tumhara nhi mera naam kya h?,,2026-04-06 10:55:50.985504
+59,23,bot,"Aapka naam nahin pata chala, lekin main aapko REC Bijnor ke baare mein jankari pradan kar sakta hoon. Main REC Bijnor ke college asisstant hoon aur aapko yahaan prapt hua hua hai.
+
+Yadi aapko college ke baare mein koi vishesh jankari chahiye, to main aapko uske baare mein jankari pradan kar sakta hoon.",,2026-04-06 10:55:51.854369
+60,24,user,Who is admin of you?,,2026-04-06 11:49:38.909778
+61,24,bot,"I am the friendly and knowledgeable college assistant of Rajkiya Engineering College, Bijnor.
+
+As for your question, I am an automated assistant, and my administration is managed by the college authorities. If you need to contact the admin, I suggest reaching out to the college's administrative department or the office of the Principal, Rajkiya Engineering College, Bijnor. They will be able to provide you with the most up-to-date information regarding the administration.",,2026-04-06 11:49:40.983634
+62,24,user,So tell me about college inauguration,,2026-04-06 11:50:48.46079
+63,24,bot,"Welcome to REC Bijnor.
+
+Unfortunately, I do not have specific information about the college inauguration. However, I can suggest contacting the College Administration or the Public Relations department for more information on this topic. They would be able to provide you with the most accurate and up-to-date information regarding the college's inauguration.",,2026-04-06 11:50:49.291647
+64,24,user,So tell me how many departments in college??,,2026-04-06 11:53:27.52891
+65,24,bot,"Welcome to REC Bijnor.
+
+As per our official college information, we have the following departments:
+
+1. Civil Engineering
+2. Computer Science and Engineering
+3. Electrical Engineering
+4. Electronics and Communication Engineering
+5. Mechanical Engineering
+
+If you need more detailed information about our departments or would like to know about any specific department, I suggest contacting the Office of the Dean (Academic) or the respective department head. They will be able to provide you with the most up-to-date information.",,2026-04-06 11:53:28.422929
+66,25,user,Hii,,2026-04-06 13:43:35.19704
+67,25,bot,"Hello! I can help with REC Bijnor information like departments, fees, placements, clubs, and scholarships. What would you like to know?",,2026-04-06 13:43:35.206459
+68,25,user,Who are you?,,2026-04-06 13:43:42.846309
+69,25,bot,Hello! I am the friendly and knowledgeable college assistant at REC Bijnor. I am here to provide you with accurate and helpful information about our college.,,2026-04-06 13:43:45.062246
+70,25,user,What can you do just straight answer,,2026-04-06 13:44:08.379527
+71,25,bot,"As REC Bijnor's assistant, I can assist with:
+
+- Providing college information and updates
+- Offering guidance on academic and administrative procedures
+- Answering frequently asked questions about the college
+- Directing students to relevant departments or resources
+
+If you have a specific query or concern, feel free to ask, and I'll do my best to assist you.",,2026-04-06 13:44:09.192177
+72,26,user,Tell me who is PM ?,,2026-04-06 13:44:40.550144
+73,26,bot,"I'd be happy to help you with that. However, I need to clarify that the information about the Prime Minister (PM) is not related to the college's official information.
+
+As per our college's context, we are a government engineering institute, and our primary focus is on providing education and information related to the college.
+
+If you're looking for information about the current Prime Minister of India, I would suggest contacting the Ministry of Information and Broadcasting, Government of India, or the Press Information Bureau (PIB) for the most accurate and up-to-date information.",,2026-04-06 13:44:41.650087
+74,26,user,So tell me the name of current pm,,2026-04-06 13:45:19.407667
+75,26,bot,"As a college assistant at REC Bijnor, I don't have real-time access to current events or government updates. However, I can suggest that you check the latest news or official government websites for the most up-to-date information on the current Prime Minister of India.
+
+If you need assistance with academic or college-related matters, I'd be happy to help.",,2026-04-06 13:45:20.206349

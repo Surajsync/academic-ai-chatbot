@@ -7,6 +7,8 @@ An academic chatbot for Rajkiya Engineering College, Bijnor. The app combines st
 - Answers college-domain questions with structured lookups first, then FAQ and semantic retrieval, then LLM fallback.
 - Supports OTP-based signup, login, password reset, and JWT-protected chat access.
 - Tracks conversations, messages, failed queries, and admin audit data.
+- Lets users edit a profile with a photo and optional personal details.
+- Lets users delete the currently selected chat from the UI and backend.
 - Uses Groq when enabled, with OpenAI and Gemini configuration slots already supported in settings.
 - Exposes admin-only views for chatbot health, FAQ management, and dashboard metrics.
 
@@ -28,7 +30,7 @@ backend/
 ├── config.py              # Environment-driven settings
 ├── database/
 │   ├── database.py        # SQLAlchemy engine/session
-│   └── models.py          # Users, conversations, FAQs, college data
+│   └── models.py          # Users, profiles, conversations, FAQs, college data
 ├── routes/
 │   └── chat_routes.py     # Lightweight /api/chat endpoint
 ├── security/
@@ -99,7 +101,13 @@ Chat and user history:
 
 - `POST /chat` for the main authenticated chatbot flow
 - `GET /chat/history`
+- `DELETE /chat/conversations/{conversation_id}`
 - `POST /api/chat` for the lightweight alternate chat route
+
+Profile:
+
+- `GET /profile/me`
+- `PUT /profile/me`
 
 Admin endpoints:
 
@@ -145,3 +153,4 @@ The current schema includes:
 - The app is designed around REC Bijnor data and should stay within the college-domain boundary.
 - If the Groq key is missing or LLM use is disabled, the bot falls back to FAQ and structured responses.
 - Both `/chat` and `/api/chat` respond, but `/chat` is the primary authenticated flow.
+- Manually added FAQs are normalized to active on insert, and legacy FAQs with a missing active flag are corrected during startup.

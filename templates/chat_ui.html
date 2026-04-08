@@ -68,6 +68,13 @@ html,body{
   border:1px solid var(--border-subtle);
 }
 
+.profile-icon img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:50%;
+}
+
 .profile-text small{
   color:var(--muted);
   font-size:12px;
@@ -76,6 +83,221 @@ html,body{
 .profile-text h3{
   font-size:15px;
   margin-top:2px;
+}
+
+.profile-card{
+  margin-top:14px;
+  padding:14px;
+  border-radius:16px;
+  border:1px solid var(--border-subtle);
+  background:linear-gradient(180deg,rgba(26,34,53,0.92),rgba(14,17,23,0.75));
+  box-shadow:0 12px 30px rgba(0,0,0,0.24);
+}
+
+.profile-card-top{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.profile-avatar{
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  overflow:hidden;
+  border:1px solid rgba(232,130,12,0.35);
+  background:rgba(232,130,12,0.12);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+
+.profile-avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.profile-card-name{
+  font-size:14px;
+  font-weight:600;
+  color:var(--cream);
+}
+
+.profile-card-sub{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.5;
+  margin-top:2px;
+}
+
+.profile-card-actions{
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+
+.profile-card button,
+.header-actions button{
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.profile-edit-btn,
+.chat-delete-btn{
+  padding:10px 12px;
+  background:rgba(232,130,12,0.14);
+  color:var(--cream);
+  border:1px solid rgba(232,130,12,0.2);
+}
+
+.chat-delete-btn{
+  background:rgba(244,63,94,0.12);
+  border-color:rgba(244,63,94,0.22);
+}
+
+.profile-edit-btn:hover,
+.chat-delete-btn:hover{
+  transform:translateY(-1px);
+}
+
+.header-actions{
+  margin-left:auto;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.header-actions button{
+  padding:10px 14px;
+  font-size:13px;
+}
+
+.header-actions .profile-edit-btn{
+  background:linear-gradient(135deg,rgba(232,130,12,0.94),rgba(245,169,58,0.94));
+  color:#fff;
+}
+
+.profile-modal{
+  width:min(760px,92vw);
+  background:rgba(14,17,23,0.98);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:22px;
+  box-shadow:0 30px 90px rgba(0,0,0,0.55);
+}
+
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(3,7,18,0.72);
+  -webkit-backdrop-filter:blur(10px);
+  backdrop-filter:blur(10px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  z-index:1200;
+}
+
+.profile-modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:18px;
+}
+
+.profile-modal-header h2{
+  font-family:'Cormorant Garamond',serif;
+  font-size:28px;
+}
+
+.profile-form-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+
+.profile-form-grid .full-span{
+  grid-column:1 / -1;
+}
+
+.profile-upload{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+
+.profile-preview{
+  width:84px;
+  height:84px;
+  border-radius:50%;
+  overflow:hidden;
+  border:1px solid rgba(232,130,12,0.25);
+  background:rgba(255,255,255,0.05);
+  flex-shrink:0;
+}
+
+.profile-preview img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.profile-help{
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+
+.profile-form-grid input,
+.profile-form-grid textarea{
+  width:100%;
+  background:var(--ink2);
+  color:var(--cream);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:12px 14px;
+  outline:none;
+}
+
+.profile-form-grid textarea{
+  min-height:100px;
+  resize:vertical;
+}
+
+.profile-form-grid input:focus,
+.profile-form-grid textarea:focus{
+  border-color:rgba(245,169,58,0.8);
+  box-shadow:0 0 0 3px rgba(232,130,12,0.1);
+}
+
+.profile-modal-footer{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+}
+
+.profile-modal-footer button{
+  padding:11px 16px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.profile-modal-save{
+  background:linear-gradient(135deg,var(--saffron),var(--saffron-pale));
+  color:#fff;
+}
+
+.profile-modal-cancel{
+  background:rgba(255,255,255,0.06);
+  color:var(--cream);
 }
 
 /* Buttons */
@@ -462,10 +684,23 @@ html,body{
   <!-- TOP -->
   <div>
     <div class="profile">
-      <div class="profile-icon">👤</div>
+      <div class="profile-icon" id="sidebar-profile-icon">👤</div>
       <div class="profile-text">
         <small id="greet-text">Good Evening</small>
         <h3 id="sidebar-username">User</h3>
+      </div>
+    </div>
+
+    <div class="profile-card">
+      <div class="profile-card-top">
+        <div class="profile-avatar" id="profile-avatar-slot">👤</div>
+        <div>
+          <div class="profile-card-name" id="profile-card-name">Your profile</div>
+          <div class="profile-card-sub" id="profile-card-subtitle">Add a photo, department, phone, and more.</div>
+        </div>
+      </div>
+      <div class="profile-card-actions">
+        <button class="profile-edit-btn" id="edit-profile-btn" type="button">Edit Profile</button>
       </div>
     </div>
 
@@ -493,6 +728,11 @@ html,body{
     <div class="header-text">
       <h1>Rajkiya Engineering College, Bijnor</h1>
       <p class="sub-title">Academic AI</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="profile-edit-btn" id="header-edit-profile-btn" type="button">Profile</button>
+      <button class="chat-delete-btn" id="delete-selected-chat-btn" type="button">Delete Selected Chat</button>
     </div>
   </div>
 
@@ -537,6 +777,13 @@ const chatBox = document.getElementById("chat-box");
 const input = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
 const conversationList = document.getElementById("conversation-list");
+const editProfileBtn = document.getElementById("edit-profile-btn");
+const headerEditProfileBtn = document.getElementById("header-edit-profile-btn");
+const deleteSelectedChatBtn = document.getElementById("delete-selected-chat-btn");
+const profileAvatarSlot = document.getElementById("profile-avatar-slot");
+const profileCardName = document.getElementById("profile-card-name");
+const profileCardSubtitle = document.getElementById("profile-card-subtitle");
+const sidebarProfileIcon = document.getElementById("sidebar-profile-icon");
 const API_BASE = window.location.origin;
 
 async function enforceChatAccess() {
@@ -570,6 +817,11 @@ async function enforceChatAccess() {
 }
 
 enforceChatAccess();
+loadUserProfile();
+
+editProfileBtn?.addEventListener("click", openProfileModal);
+headerEditProfileBtn?.addEventListener("click", openProfileModal);
+deleteSelectedChatBtn?.addEventListener("click", deleteSelectedConversation);
 
 // ================= LOAD CONVERSATIONS FROM BACKEND =================
 async function loadConversationsFromBackend() {
@@ -628,7 +880,8 @@ const welcomePrompts = [
 const state = {
     conversations: JSON.parse(localStorage.getItem("conversations")) || [],
     currentConversationId: localStorage.getItem("currentConversationId"),
-    archivedExpanded: false
+  archivedExpanded: false,
+  profile: null
 };
 
 function normalizeConversationId(id) {
@@ -669,6 +922,241 @@ function updateState(newState = {}) {
     localStorage.setItem("conversations", JSON.stringify(state.conversations));
     localStorage.setItem("currentConversationId", state.currentConversationId);
     renderConversations();
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function getProfileLabel(profile) {
+  const displayName = (profile?.display_name || profile?.username || username || "User").trim();
+  const sections = [profile?.department, profile?.semester, profile?.year].filter(Boolean);
+  return {
+    name: displayName,
+    subtitle: sections.length ? sections.join(" · ") : "Add a photo, department, phone, and more.",
+  };
+}
+
+function getProfileInitials(nameValue) {
+  const parts = String(nameValue || "U").trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  return parts.map(part => part[0]?.toUpperCase() || "U").join("") || "U";
+}
+
+function renderProfileSection(profile) {
+  state.profile = profile || null;
+  const info = getProfileLabel(profile);
+  const photoData = profile?.photo_data || "";
+  const initials = getProfileInitials(info.name);
+  const avatarMarkup = photoData
+    ? `<img src="${photoData}" alt="Profile photo">`
+    : `<span>${initials}</span>`;
+
+  if (profileAvatarSlot) profileAvatarSlot.innerHTML = avatarMarkup;
+  if (sidebarProfileIcon) sidebarProfileIcon.innerHTML = photoData ? `<img src="${photoData}" alt="Profile photo">` : initials;
+  if (profileCardName) profileCardName.textContent = info.name;
+  if (profileCardSubtitle) profileCardSubtitle.textContent = info.subtitle;
+}
+
+async function loadUserProfile() {
+  const token = localStorage.getItem("access_token");
+  if (!token) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/profile/me`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!response.ok) return;
+
+    const profile = await response.json();
+    renderProfileSection(profile);
+  } catch (error) {
+    console.error("Failed to load profile:", error);
+  }
+}
+
+function closeProfileModal() {
+  document.getElementById("profile-modal-overlay")?.remove();
+}
+
+function openProfileModal() {
+  const profile = state.profile || {};
+  const info = getProfileLabel(profile);
+  const photoData = profile.photo_data || "";
+  const previewMarkup = photoData
+    ? `<img id="profile-photo-preview" src="${photoData}" alt="Profile preview">`
+    : `<img id="profile-photo-preview" src="data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' rx='60' fill='#1a2235'/><text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='34' fill='#f7f3ea'>${getProfileInitials(info.name)}</text></svg>`)}" alt="Profile preview">`;
+
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="modal-overlay" id="profile-modal-overlay">
+      <div class="profile-modal">
+        <div class="profile-modal-header">
+          <h2>Edit Profile</h2>
+          <button type="button" class="profile-modal-cancel" id="profile-close-btn">Close</button>
+        </div>
+        <form id="profile-form">
+          <div class="profile-upload">
+            <div class="profile-preview">${previewMarkup}</div>
+            <div class="profile-help">
+              Upload a profile photo and fill any fields you want to keep visible in chat.
+              The rest can stay empty.
+            </div>
+          </div>
+          <div style="height:16px"></div>
+          <div class="profile-form-grid">
+            <div>
+              <label>Display Name</label>
+              <input name="display_name" value="${escapeHtml(info.name)}" placeholder="Your display name">
+            </div>
+            <div>
+              <label>Phone</label>
+              <input name="phone" value="${escapeHtml(profile.phone)}" placeholder="Phone number">
+            </div>
+            <div>
+              <label>Department</label>
+              <input name="department" value="${escapeHtml(profile.department)}" placeholder="Branch or department">
+            </div>
+            <div>
+              <label>Semester</label>
+              <input name="semester" value="${escapeHtml(profile.semester)}" placeholder="Semester">
+            </div>
+            <div>
+              <label>Year</label>
+              <input name="year" value="${escapeHtml(profile.year)}" placeholder="Year of study">
+            </div>
+            <div>
+              <label>Roll Number</label>
+              <input name="roll_number" value="${escapeHtml(profile.roll_number)}" placeholder="Roll number">
+            </div>
+            <div>
+              <label>Location</label>
+              <input name="location" value="${escapeHtml(profile.location)}" placeholder="City / state">
+            </div>
+            <div>
+              <label>LinkedIn</label>
+              <input name="linkedin" value="${escapeHtml(profile.linkedin)}" placeholder="Profile link">
+            </div>
+            <div class="full-span">
+              <label>Website</label>
+              <input name="website" value="${escapeHtml(profile.website)}" placeholder="Personal website or portfolio">
+            </div>
+            <div class="full-span">
+              <label>About You</label>
+              <textarea name="bio" placeholder="Write a short bio if you want to share one.">${escapeHtml(profile.bio)}</textarea>
+            </div>
+            <div class="full-span">
+              <label>Profile Photo</label>
+              <input type="file" name="profile_photo" id="profile-photo-input" accept="image/*">
+            </div>
+          </div>
+          <div class="profile-modal-footer">
+            <button type="button" class="profile-modal-cancel" id="profile-cancel-btn">Cancel</button>
+            <button type="submit" class="profile-modal-save">Save Profile</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `);
+
+  const overlay = document.getElementById("profile-modal-overlay");
+  overlay?.addEventListener("click", (event) => {
+    if (event.target === overlay) closeProfileModal();
+  });
+  document.getElementById("profile-close-btn")?.addEventListener("click", closeProfileModal);
+  document.getElementById("profile-cancel-btn")?.addEventListener("click", closeProfileModal);
+
+  const photoInput = document.getElementById("profile-photo-input");
+  const preview = document.getElementById("profile-photo-preview");
+  photoInput?.addEventListener("change", () => {
+    const file = photoInput.files?.[0];
+    if (!file || !preview) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      preview.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
+
+  const form = document.getElementById("profile-form");
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+
+    const formData = new FormData(form);
+    if (!formData.get("profile_photo")) {
+      formData.delete("profile_photo");
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/profile/me`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}` },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Could not save profile");
+
+      renderProfileSection(data);
+      closeProfileModal();
+    } catch (error) {
+      alert(error.message || "Could not save profile");
+    }
+  });
+}
+
+async function deleteConversationById(id) {
+  const conversationId = normalizeConversationId(id);
+  if (!conversationId) return;
+
+  const conv = findConversation(conversationId);
+  const label = conv?.title || "this chat";
+  const confirmDelete = confirm(`Delete ${label}? This cannot be undone.`);
+  if (!confirmDelete) return;
+
+  try {
+    if (!isTemporaryConversationId(conversationId)) {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${API_BASE}/chat/conversations/${conversationId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Could not delete chat");
+      }
+    }
+
+    const deletingCurrent = normalizeConversationId(state.currentConversationId) === conversationId;
+    const remainingConversations = state.conversations.filter(c => normalizeConversationId(c.id) !== conversationId);
+    const nextConversation = deletingCurrent ? remainingConversations.find(c => !c.archived) || null : findConversation(state.currentConversationId);
+
+    updateState({
+      conversations: remainingConversations,
+      currentConversationId: nextConversation ? nextConversation.id : null
+    });
+
+    if (deletingCurrent) {
+      if (nextConversation) {
+        loadConversation(nextConversation.id);
+      } else {
+        createNewConversation();
+        showWelcomePrompt();
+      }
+    }
+  } catch (error) {
+    alert(error.message || "Could not delete chat");
+  }
+}
+
+async function deleteSelectedConversation() {
+  await deleteConversationById(state.currentConversationId);
 }
 
 // ================= SAMPLE STARTER PROMPTS =================
@@ -1034,21 +1522,7 @@ function restoreConversation(id) {
 }
 
 function deleteConversation(id) {
-    const confirmDelete = confirm("Are you sure you want to delete this chat?");
-    if (!confirmDelete) return;
-
-    const targetId = normalizeConversationId(id);
-    const filtered = state.conversations.filter(c => normalizeConversationId(c.id) !== targetId);
-
-    updateState({
-        conversations: filtered,
-        currentConversationId:
-        normalizeConversationId(state.currentConversationId) === targetId ? null : state.currentConversationId
-    });
-
-    if (!state.currentConversationId) {
-        createNewConversation();
-    }
+  deleteConversationById(id);
 }
 
 function closeDropdowns() {

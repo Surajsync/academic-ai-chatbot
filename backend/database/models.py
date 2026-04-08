@@ -17,6 +17,30 @@ class User(Base):
     role = Column(String, default="user")  # admin, user
 
     conversations = relationship("Conversation", back_populates="user")
+    profile = relationship("UserProfile", back_populates="user", uselist=False)
+
+
+# ================= USER PROFILE =================
+
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    display_name = Column(String(120), nullable=True)
+    phone = Column(String(30), nullable=True)
+    department = Column(String(120), nullable=True)
+    semester = Column(String(30), nullable=True)
+    year = Column(String(30), nullable=True)
+    roll_number = Column(String(60), nullable=True)
+    location = Column(String(120), nullable=True)
+    linkedin = Column(String(255), nullable=True)
+    website = Column(String(255), nullable=True)
+    bio = Column(Text, nullable=True)
+    photo_data = Column(Text, nullable=True)
+    photo_mime = Column(String(100), nullable=True)
+
+    user = relationship("User", back_populates="profile")
 
 
 # ================= FAQ =================
