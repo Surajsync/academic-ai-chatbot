@@ -298,9 +298,29 @@ document.getElementById("admin-name").textContent = uname;
 document.getElementById("admin-av").textContent   = uname.charAt(0).toUpperCase();
 setInterval(()=>{ document.getElementById("clock").textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); },1000);
 
-let allFaqs=[], allUsers=[], currentPage=1, faqsPerPage=15;
+let allFaqs=[], allUsers=[], allFailedQueries=[], currentPage=1, faqsPerPage=15;
+let faqSearchQuery="", faqStatusFilter="all";
 let userSearchQuery="", userRoleFilter="all";
+let failedSearchQuery="", failedPriorityFilter="all";
 function H(){return{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"}}
+
+function escapeCsvCell(value){
+  const text = String(value ?? "").replace(/"/g, '""');
+  return `"${text}"`;
+}
+
+function downloadCsv(filename, rows){
+  const csv = rows.map(row => row.map(escapeCsvCell).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 function goto(page){
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
@@ -350,6 +370,8 @@ async function loadDashboard(){
     const ai = aiRes.ok ? await aiRes.json() : {enabled:false, model:"n/a", api_key_configured:false};
     const blockedUsers=users.filter(u=>!u.is_active).length;
     const highFreq=failed.filter(f=>f.frequency>=3).length;
+    const sortedFailed = [...failed].sort((a,b)=>b.frequency-a.frequency);
+    const topIssue = sortedFailed[0] || null;
     const aiReady = !!(ai.enabled && ai.api_key_configured);
     const aiState = aiReady ? "Ready" : (ai.enabled ? "Missing API Key" : "Disabled");
     const aiStateClass = aiReady ? "badge-green" : (ai.enabled ? "badge-yellow" : "badge-red");
@@ -407,6 +429,13 @@ async function loadDashboard(){
             <div class="status-line"><span class="status-key">API Key</span><span class="status-val">${ai.api_key_configured ? 'configured' : 'missing'}</span></div>
           </div>
           <div style="height:14px"></div>
+          <div class="panel-title">🚨 Operations Snapshot</div>
+          <div class="status-lines">
+            <div class="status-line"><span class="status-key">Top Repeated Failed Query</span><span class="status-val">${topIssue ? `${topIssue.frequency}x` : 'none'}</span></div>
+            <div class="status-line"><span class="status-key">Issue Preview</span><span class="status-val" style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${topIssue ? topIssue.query_text : 'All good'}</span></div>
+            <div class="status-line"><span class="status-key">Blocked Users</span><span class="status-val">${blockedUsers}</span></div>
+          </div>
+          <div style="height:14px"></div>
           <div class="panel-title">⚡ Quick Actions</div>
           <button class="quick-action" onclick="goto('faqs');setTimeout(openAddFAQ,400)">
             <div class="qa-icon" style="background:rgba(240,144,13,0.15)">➕</div>
@@ -440,11 +469,30 @@ async function loadFAQs(){
   document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">⏳</div><p>Loading knowledge base...</p></div>`;
   try{
     const res=await fetch(`${API}/admin/faqs`,{headers:H()});
-    allFaqs=await res.json();currentPage=1;renderFAQs(allFaqs);
+    allFaqs=await res.json();currentPage=1;renderFAQs();
   }catch(e){toast("Failed to load FAQs","error")}
 }
 
-function renderFAQs(faqs){
+function normalizeFaqSearchValue(value){
+  return String(value || "").trim().toLowerCase();
+}
+
+function getFilteredFaqs(){
+  const query = normalizeFaqSearchValue(faqSearchQuery);
+  const filtered = allFaqs.filter(item => {
+    const idText = String(item.id || "").toLowerCase();
+    const keywordText = String(item.keyword || "").toLowerCase();
+    const responseText = String(item.response || "").toLowerCase();
+    const statusText = item.is_active ? "active" : "inactive";
+    const matchesQuery = !query || [idText, keywordText, responseText, statusText].some(text => text.includes(query));
+    const matchesStatus = faqStatusFilter === "all" || (faqStatusFilter === "active" ? item.is_active : !item.is_active);
+    return matchesQuery && matchesStatus;
+  });
+  return filtered;
+}
+
+function renderFAQs(){
+  const faqs = getFilteredFaqs();
   const total=faqs.length,pages=Math.ceil(total/faqsPerPage);
   const start=(currentPage-1)*faqsPerPage,paged=faqs.slice(start,start+faqsPerPage);
   let rows=paged.map(f=>{
@@ -470,9 +518,9 @@ function renderFAQs(faqs){
     </div>
     <div class="info-box"><span class="info-icon">💡</span><span>The chatbot matches student questions to <strong>keywords</strong> below and replies with the saved response. More keywords = better accuracy. Separate keywords with commas.</span></div>
     <div class="toolbar">
-      <div class="search-wrap"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search by keyword or response…" oninput="filterFAQs(this.value)" id="faq-search"></div>
+      <div class="search-wrap"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search by ID, keyword, response, or status…" value="${faqSearchQuery.replace(/"/g,'&quot;')}" oninput="filterFAQs(this.value)" id="faq-search"></div>
       <select class="filter-select" onchange="filterStatus(this.value)" id="filter-status">
-        <option value="all">All Status</option><option value="active">Active only</option><option value="inactive">Inactive only</option>
+        <option value="all" ${faqStatusFilter==='all'?'selected':''}>All Status</option><option value="active" ${faqStatusFilter==='active'?'selected':''}>Active only</option><option value="inactive" ${faqStatusFilter==='inactive'?'selected':''}>Inactive only</option>
       </select>
     </div>
     <div class="table-wrap">
@@ -484,17 +532,12 @@ function renderFAQs(faqs){
     </div>`;
 }
 
-function changePage(p){currentPage=p;renderFAQs(allFaqs)}
+function changePage(p){currentPage=p;renderFAQs()}
 function getFiltered(){
-  const q=document.getElementById("faq-search")?.value||"";
-  const s=document.getElementById("filter-status")?.value||"all";
-  let f=allFaqs.filter(x=>x.keyword.toLowerCase().includes(q.toLowerCase())||x.response.toLowerCase().includes(q.toLowerCase()));
-  if(s==="active") f=f.filter(x=>x.is_active);
-  if(s==="inactive") f=f.filter(x=>!x.is_active);
-  return f;
+  return getFilteredFaqs();
 }
-function filterFAQs(){currentPage=1;renderFAQs(getFiltered())}
-function filterStatus(){currentPage=1;renderFAQs(getFiltered())}
+function filterFAQs(value){faqSearchQuery=value||"";currentPage=1;renderFAQs()}
+function filterStatus(value){faqStatusFilter=value||"all";currentPage=1;renderFAQs()}
 
 function openAddFAQ(){
   modal(`<div class="modal-header"><h2>➕ Add New FAQ</h2><button class="modal-close" onclick="closeModal()">×</button></div>
@@ -550,34 +593,99 @@ async function loadFailed(){
   try{
     const res=await fetch(`${API}/admin/failed`,{headers:H()});
     const data=await res.json();
-    const sorted=data.sort((a,b)=>b.frequency-a.frequency);
-    if(sorted.length===0){
+    allFailedQueries = [...data].sort((a,b)=>b.frequency-a.frequency);
+    if(allFailedQueries.length===0){
       document.getElementById("content").innerHTML=`<div class="empty" style="padding:80px 20px"><div class="empty-icon">🎉</div><h3>All Clear!</h3><p>The chatbot is answering every question. No failed queries found.</p></div>`;
       return;
     }
-    const urgent=sorted.filter(f=>f.frequency>=5);
-    let rows=sorted.map(f=>{
-      const cls=f.frequency>=5?"badge-red":f.frequency>=2?"badge-yellow":"badge-green";
-      const lbl=f.frequency>=5?"🔴 High":f.frequency>=2?"🟡 Medium":"🟢 Low";
-      const safe=f.query_text.replace(/'/g,"\\'").replace(/"/g,"&quot;");
-      return `<tr>
-        <td style="max-width:300px">${f.query_text}</td>
-        <td><span class="badge ${cls}">${f.frequency}×</span></td>
-        <td>${lbl}</td>
-        <td style="color:var(--muted);font-size:11px;white-space:nowrap;font-family:'JetBrains Mono',monospace">${f.created_at?new Date(f.created_at).toLocaleDateString():'-'}</td>
-        <td style="display:flex;gap:6px"><button class="btn btn-success btn-sm" onclick="convertToFAQ('${safe}')">➕ Add as FAQ</button><button class="btn btn-danger btn-sm" onclick="deleteFailedQuery(${f.id},'${safe}')">🗑️ Delete</button></td>
-      </tr>`;
-    }).join("");
-
-    document.getElementById("content").innerHTML=`
-      <div class="section-hdr"><h2>⚠️ Failed Queries <span class="count">${data.length} unique</span></h2></div>
-      ${urgent.length>0?`<div class="warn-box"><span class="info-icon">🔴</span><span><strong>${urgent.length} high-priority queries</strong> asked 5+ times with no answer. Add them as FAQs to significantly improve the chatbot.</span></div>`:''}
-      <div class="info-box"><span class="info-icon">💡</span><span>These are questions students asked that the chatbot couldn't answer. Click <strong>"Add as FAQ"</strong> to teach the chatbot how to respond.</span></div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Student's Question</th><th>Asked</th><th>Priority</th><th>First Seen</th><th>Fix It</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>`;
+    renderFailedQueries();
   }catch(e){toast("Failed to load","error")}
+}
+
+function getPriorityLabel(frequency){
+  if (frequency >= 5) return "high";
+  if (frequency >= 2) return "medium";
+  return "low";
+}
+
+function getFilteredFailedQueries(){
+  const query = failedSearchQuery.trim().toLowerCase();
+  return allFailedQueries.filter(item => {
+    const matchQuery = !query || String(item.query_text || "").toLowerCase().includes(query);
+    const priority = getPriorityLabel(Number(item.frequency || 0));
+    const matchPriority = failedPriorityFilter === "all" || priority === failedPriorityFilter;
+    return matchQuery && matchPriority;
+  });
+}
+
+function renderFailedQueries(){
+  const filtered = getFilteredFailedQueries();
+  const urgent = filtered.filter(f=>Number(f.frequency || 0)>=5);
+
+  let rows=filtered.map(f=>{
+    const cls=f.frequency>=5?"badge-red":f.frequency>=2?"badge-yellow":"badge-green";
+    const lbl=f.frequency>=5?"🔴 High":f.frequency>=2?"🟡 Medium":"🟢 Low";
+    const safe=f.query_text.replace(/'/g,"\\'").replace(/"/g,"&quot;");
+    return `<tr>
+      <td style="max-width:300px">${f.query_text}</td>
+      <td><span class="badge ${cls}">${f.frequency}×</span></td>
+      <td>${lbl}</td>
+      <td style="color:var(--muted);font-size:11px;white-space:nowrap;font-family:'JetBrains Mono',monospace">${f.created_at?new Date(f.created_at).toLocaleDateString():'-'}</td>
+      <td style="display:flex;gap:6px"><button class="btn btn-success btn-sm" onclick="convertToFAQ('${safe}')">➕ Add as FAQ</button><button class="btn btn-danger btn-sm" onclick="deleteFailedQuery(${f.id},'${safe}')">🗑️ Delete</button></td>
+    </tr>`;
+  }).join("");
+
+  document.getElementById("content").innerHTML=`
+    <div class="section-hdr"><h2>⚠️ Failed Queries <span class="count">${allFailedQueries.length} unique</span></h2>
+      <button class="btn btn-blue" onclick="exportFailedQueriesCsv()">⬇️ Export CSV</button>
+    </div>
+    ${urgent.length>0?`<div class="warn-box"><span class="info-icon">🔴</span><span><strong>${urgent.length} high-priority queries</strong> in current view asked 5+ times with no answer. Add them as FAQs to improve chatbot quality quickly.</span></div>`:''}
+    <div class="info-box"><span class="info-icon">💡</span><span>Use search + priority filters to triage first, then convert top repeated questions into FAQs.</span></div>
+    <div class="toolbar">
+      <div class="search-wrap"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search failed query text..." value="${failedSearchQuery.replace(/"/g,'&quot;')}" oninput="filterFailedQueryText(this.value)"></div>
+      <select class="filter-select" onchange="filterFailedPriority(this.value)">
+        <option value="all" ${failedPriorityFilter==='all'?'selected':''}>All Priorities</option>
+        <option value="high" ${failedPriorityFilter==='high'?'selected':''}>High (5x+)</option>
+        <option value="medium" ${failedPriorityFilter==='medium'?'selected':''}>Medium (2x-4x)</option>
+        <option value="low" ${failedPriorityFilter==='low'?'selected':''}>Low (1x)</option>
+      </select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Student's Question</th><th>Asked</th><th>Priority</th><th>First Seen</th><th>Fix It</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="5"><div class="empty"><div class="empty-icon">📭</div><h3>No Matching Failed Queries</h3><p>Try a different keyword or priority filter.</p></div></td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function filterFailedQueryText(value){
+  failedSearchQuery = value || "";
+  renderFailedQueries();
+}
+
+function filterFailedPriority(value){
+  failedPriorityFilter = value || "all";
+  renderFailedQueries();
+}
+
+function exportFailedQueriesCsv(){
+  const rows = getFilteredFailedQueries();
+  if (!rows.length) {
+    toast("No failed queries to export","info");
+    return;
+  }
+
+  const csvRows = [
+    ["id", "query_text", "frequency", "priority", "created_at"],
+    ...rows.map(item => [
+      item.id,
+      item.query_text,
+      item.frequency,
+      getPriorityLabel(Number(item.frequency || 0)),
+      item.created_at || ""
+    ])
+  ];
+
+  downloadCsv(`failed-queries-${Date.now()}.csv`, csvRows);
+  toast("Failed queries exported","success");
 }
 
 function convertToFAQ(queryText){

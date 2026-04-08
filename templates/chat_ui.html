@@ -176,6 +176,40 @@ html,body{
   font-size:13px;
 }
 
+.chat-tools{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin:10px 0 14px;
+  flex-wrap:wrap;
+}
+
+.tool-search{
+  flex:1;
+  min-width:220px;
+  background:var(--ink2);
+  border:1px solid var(--border-subtle);
+  color:var(--cream);
+  border-radius:10px;
+  height:40px;
+  padding:0 12px;
+}
+
+.tool-btn{
+  border:none;
+  border-radius:10px;
+  height:40px;
+  padding:0 12px;
+  cursor:pointer;
+  color:var(--cream);
+  background:rgba(255,255,255,0.06);
+  border:1px solid var(--border-subtle);
+}
+
+.tool-btn:hover{
+  background:rgba(232,130,12,0.12);
+}
+
 .header-actions .profile-edit-btn{
   background:linear-gradient(135deg,rgba(232,130,12,0.94),rgba(245,169,58,0.94));
   color:#fff;
@@ -527,6 +561,32 @@ html,body{
   animation:smoothAppear 0.35s ease forwards;
 }
 
+.message.search-hit{
+  box-shadow:0 0 0 2px rgba(245,169,58,0.45);
+}
+
+.message-row{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+
+.message-row.user-row{
+  justify-content:flex-end;
+}
+
+.message-row.bot-row{
+  justify-content:flex-start;
+}
+
+.msg-select{
+  margin-top:10px;
+  width:16px;
+  height:16px;
+  accent-color:var(--saffron);
+  cursor:pointer;
+}
+
 @keyframes smoothAppear{
   to{
     opacity:1;
@@ -731,9 +791,15 @@ html,body{
     </div>
 
     <div class="header-actions">
-      <button class="profile-edit-btn" id="header-edit-profile-btn" type="button">Profile</button>
-      <button class="chat-delete-btn" id="delete-selected-chat-btn" type="button">Delete Selected Chat</button>
+      <button class="chat-delete-btn" id="delete-selected-messages-btn" type="button">Delete Selected Messages</button>
     </div>
+  </div>
+
+  <div class="chat-tools">
+    <input id="chat-search-input" class="tool-search" type="text" placeholder="Search in this chat...">
+    <button id="select-all-messages-btn" class="tool-btn" type="button">Select All</button>
+    <button id="clear-chat-messages-btn" class="tool-btn" type="button">Clear Chat</button>
+    <button id="export-chat-btn" class="tool-btn" type="button">Export Chat</button>
   </div>
 
   <div class="chat-box" id="chat-box"></div>
@@ -778,8 +844,11 @@ const input = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
 const conversationList = document.getElementById("conversation-list");
 const editProfileBtn = document.getElementById("edit-profile-btn");
-const headerEditProfileBtn = document.getElementById("header-edit-profile-btn");
-const deleteSelectedChatBtn = document.getElementById("delete-selected-chat-btn");
+const deleteSelectedMessagesBtn = document.getElementById("delete-selected-messages-btn");
+const chatSearchInput = document.getElementById("chat-search-input");
+const selectAllMessagesBtn = document.getElementById("select-all-messages-btn");
+const clearChatMessagesBtn = document.getElementById("clear-chat-messages-btn");
+const exportChatBtn = document.getElementById("export-chat-btn");
 const profileAvatarSlot = document.getElementById("profile-avatar-slot");
 const profileCardName = document.getElementById("profile-card-name");
 const profileCardSubtitle = document.getElementById("profile-card-subtitle");
@@ -820,8 +889,13 @@ enforceChatAccess();
 loadUserProfile();
 
 editProfileBtn?.addEventListener("click", openProfileModal);
-headerEditProfileBtn?.addEventListener("click", openProfileModal);
-deleteSelectedChatBtn?.addEventListener("click", deleteSelectedConversation);
+deleteSelectedMessagesBtn?.addEventListener("click", deleteSelectedMessages);
+chatSearchInput?.addEventListener("input", () => {
+  loadConversation(state.currentConversationId, { preserveSelection: true });
+});
+selectAllMessagesBtn?.addEventListener("click", selectAllMessagesInCurrentChat);
+clearChatMessagesBtn?.addEventListener("click", clearCurrentChatMessages);
+exportChatBtn?.addEventListener("click", exportCurrentChat);
 
 // ================= LOAD CONVERSATIONS FROM BACKEND =================
 async function loadConversationsFromBackend() {
@@ -840,6 +914,7 @@ async function loadConversationsFromBackend() {
               id: normalizeConversationId(conv.id),
                 title: conv.title,
             messages: (Array.isArray(conv.messages) ? conv.messages : []).map(msg => ({
+              id: normalizeMessageId(msg.id),
               role: msg.role === "user" ? "user" : "bot",
               text: msg.text || msg.content || ""
             })),
@@ -881,7 +956,9 @@ const state = {
     conversations: JSON.parse(localStorage.getItem("conversations")) || [],
     currentConversationId: localStorage.getItem("currentConversationId"),
   archivedExpanded: false,
-  profile: null
+  profile: null,
+  selectedMessageIds: new Set(),
+  activeRenderedConversationId: null
 };
 
 function normalizeConversationId(id) {
@@ -898,10 +975,24 @@ function findConversation(id) {
   return state.conversations.find(c => normalizeConversationId(c.id) === targetId);
 }
 
+function normalizeMessageId(id) {
+  if (id === null || id === undefined || id === "") return null;
+  return String(id);
+}
+
+function createLocalMessageId() {
+  return `local-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+}
+
+function getMessageId(msg, idx = 0) {
+  return normalizeMessageId(msg?.id) || `legacy-${idx}-${Math.floor(Math.random() * 100000)}`;
+}
+
 state.conversations = state.conversations.map(conv => ({
   ...conv,
   id: normalizeConversationId(conv.id),
-  messages: (conv.messages || []).map(msg => ({
+  messages: (conv.messages || []).map((msg, idx) => ({
+    id: getMessageId(msg, idx),
     role: msg.role === "user" ? "user" : "bot",
     text: msg.text || msg.content || ""
   }))
@@ -913,7 +1004,8 @@ function updateState(newState = {}) {
   state.conversations = state.conversations.map(conv => ({
     ...conv,
     id: normalizeConversationId(conv.id),
-    messages: (conv.messages || []).map(msg => ({
+    messages: (conv.messages || []).map((msg, idx) => ({
+      id: getMessageId(msg, idx),
       role: msg.role === "user" ? "user" : "bot",
       text: msg.text || msg.content || ""
     }))
@@ -1155,8 +1247,166 @@ async function deleteConversationById(id) {
   }
 }
 
-async function deleteSelectedConversation() {
-  await deleteConversationById(state.currentConversationId);
+function clearSelectedMessages() {
+  state.selectedMessageIds = new Set();
+}
+
+function getCurrentSearchQuery() {
+  return String(chatSearchInput?.value || "").trim().toLowerCase();
+}
+
+function toggleMessageSelection(messageId, isSelected) {
+  const normalizedId = normalizeMessageId(messageId);
+  if (!normalizedId) return;
+
+  if (isSelected) {
+    state.selectedMessageIds.add(normalizedId);
+  } else {
+    state.selectedMessageIds.delete(normalizedId);
+  }
+}
+
+async function deleteSelectedMessages() {
+  const conv = findConversation(state.currentConversationId);
+  if (!conv) return;
+
+  const selectedIds = Array.from(state.selectedMessageIds);
+  if (!selectedIds.length) {
+    alert("Select one or more messages to delete.");
+    return;
+  }
+
+  const confirmed = confirm(`Delete ${selectedIds.length} selected message(s) from this chat?`);
+  if (!confirmed) return;
+
+  const persistedMessageIds = selectedIds
+    .map(id => Number(id))
+    .filter(Number.isInteger);
+
+  try {
+    const conversationId = normalizeConversationId(state.currentConversationId);
+    const isPersistedConversation = conversationId && !isTemporaryConversationId(conversationId);
+
+    if (isPersistedConversation && persistedMessageIds.length > 0) {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${API_BASE}/chat/conversations/${conversationId}/messages`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ message_ids: persistedMessageIds })
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Could not delete selected messages");
+      }
+    }
+
+    conv.messages = conv.messages.filter(msg => {
+      const msgId = normalizeMessageId(msg.id);
+      return !state.selectedMessageIds.has(msgId);
+    });
+
+    clearSelectedMessages();
+    updateState();
+    loadConversation(state.currentConversationId);
+  } catch (error) {
+    alert(error.message || "Could not delete selected messages");
+  }
+}
+
+function selectAllMessagesInCurrentChat() {
+  const conv = findConversation(state.currentConversationId);
+  if (!conv || !Array.isArray(conv.messages) || !conv.messages.length) {
+    alert("No messages available to select.");
+    return;
+  }
+
+  clearSelectedMessages();
+  conv.messages.forEach((msg, idx) => {
+    const mid = getMessageId(msg, idx);
+    state.selectedMessageIds.add(mid);
+  });
+
+  document.querySelectorAll(".msg-select").forEach(box => {
+    box.checked = true;
+  });
+}
+
+async function clearCurrentChatMessages() {
+  const conv = findConversation(state.currentConversationId);
+  if (!conv) return;
+  if (!Array.isArray(conv.messages) || conv.messages.length === 0) {
+    alert("This chat is already empty.");
+    return;
+  }
+
+  const confirmed = confirm("Clear all messages in this chat? This cannot be undone.");
+  if (!confirmed) return;
+
+  const allMessageIds = conv.messages
+    .map(msg => Number(normalizeMessageId(msg.id)))
+    .filter(Number.isInteger);
+
+  try {
+    const conversationId = normalizeConversationId(state.currentConversationId);
+    const isPersistedConversation = conversationId && !isTemporaryConversationId(conversationId);
+
+    if (isPersistedConversation && allMessageIds.length > 0) {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${API_BASE}/chat/conversations/${conversationId}/messages`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ message_ids: allMessageIds })
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Could not clear this chat");
+      }
+    }
+
+    conv.messages = [];
+    clearSelectedMessages();
+    updateState();
+    loadConversation(state.currentConversationId);
+  } catch (error) {
+    alert(error.message || "Could not clear this chat");
+  }
+}
+
+function exportCurrentChat() {
+  const conv = findConversation(state.currentConversationId);
+  if (!conv || !Array.isArray(conv.messages) || conv.messages.length === 0) {
+    alert("No messages available to export.");
+    return;
+  }
+
+  const lines = [
+    `Chat: ${conv.title || "Untitled Chat"}`,
+    `Exported at: ${new Date().toLocaleString("en-IN")}`,
+    ""
+  ];
+
+  conv.messages.forEach(msg => {
+    const role = msg.role === "user" ? "User" : "Bot";
+    lines.push(`${role}: ${msg.text || msg.content || ""}`);
+  });
+
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `chat-${normalizeConversationId(conv.id) || Date.now()}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 // ================= SAMPLE STARTER PROMPTS =================
@@ -1173,6 +1423,8 @@ const academicStarters = [
 
 // ================= CREATE NEW CHAT =================
 function createNewConversation() {
+
+  clearSelectedMessages();
 
     // Remove previous empty conversation if exists
     if (state.currentConversationId) {
@@ -1226,6 +1478,8 @@ function createConversationItem(conv) {
     const wrapper = document.createElement("div");
     wrapper.className = "conversation-item";
   wrapper.onclick = () => {
+      clearSelectedMessages();
+      state.activeRenderedConversationId = null;
     updateState({ currentConversationId: convId });
     loadConversation(convId);
   };
@@ -1319,10 +1573,17 @@ function renderConversations() {
 }
 
 // ================= LOAD CHAT =================
-function loadConversation(id) {
+function loadConversation(id, options = {}) {
+  const { preserveSelection = false } = options;
 
   const conv = findConversation(id);
     if (!conv) return;
+
+    const incomingId = normalizeConversationId(id);
+    if (!preserveSelection && incomingId !== state.activeRenderedConversationId) {
+      clearSelectedMessages();
+    }
+    state.activeRenderedConversationId = incomingId;
 
     chatBox.innerHTML = "";
 
@@ -1331,36 +1592,64 @@ function loadConversation(id) {
         return;
     }
 
-    conv.messages.forEach(msg => {
-        const role = msg.role === "user" ? "user" : "bot";
-        const bubble = document.createElement("div");
-        bubble.className = "message " + role;
+    conv.messages.forEach((msg, idx) => {
+      const role = msg.role === "user" ? "user" : "bot";
       const safeText = msg.text || msg.content || "";
-        
-        // For bot messages, use innerHTML to support formatted text
-        if (role === "bot") {
+      const messageId = getMessageId(msg, idx);
+      const searchQuery = getCurrentSearchQuery();
+      const isSearchHit = searchQuery && safeText.toLowerCase().includes(searchQuery);
+      msg.id = messageId;
+
+      const row = document.createElement("div");
+      row.className = `message-row ${role}-row`;
+
+      const selectBox = document.createElement("input");
+      selectBox.type = "checkbox";
+      selectBox.className = "msg-select";
+      selectBox.checked = state.selectedMessageIds.has(messageId);
+      selectBox.addEventListener("change", () => {
+        toggleMessageSelection(messageId, selectBox.checked);
+      });
+
+      const bubble = document.createElement("div");
+      bubble.className = "message " + role;
+      if (isSearchHit) bubble.classList.add("search-hit");
+
+      if (role === "bot") {
         bubble.innerHTML = safeText
           .replace(/\n/g, '<br>')
           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
           .replace(/__(.*?)__/g, '<em>$1</em>');
-        } else {
+      } else {
         bubble.textContent = safeText;
-        }
-        
-        chatBox.appendChild(bubble);
+      }
+
+      if (role === "user") {
+        row.appendChild(selectBox);
+        row.appendChild(bubble);
+      } else {
+        row.appendChild(bubble);
+        row.appendChild(selectBox);
+      }
+
+      chatBox.appendChild(row);
     });
 
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 // ================= SAVE MESSAGE =================
-function saveMessage(role, text) {
+function saveMessage(role, text, messageId = null) {
 
   const conv = findConversation(state.currentConversationId);
 
     if (!conv) return;
 
-    conv.messages.push({ role, text });
+    conv.messages.push({
+      id: normalizeMessageId(messageId) || createLocalMessageId(),
+      role,
+      text
+    });
 
     if (conv.title === "New Chat") {
         conv.title = text.substring(0, 25);
@@ -1383,12 +1672,10 @@ async function sendMessage() {
         createNewConversation();
     }
 
-    const userBubble = document.createElement("div");
-    userBubble.className = "message user";
-    userBubble.textContent = msg;
-    chatBox.appendChild(userBubble);
+    const userMessageId = createLocalMessageId();
 
-    saveMessage("user", msg);
+    saveMessage("user", msg, userMessageId);
+    loadConversation(state.currentConversationId);
 
     input.value = "";
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: "smooth" });
@@ -1438,18 +1725,16 @@ async function sendMessage() {
         }
       }
 
-        const botBubble = document.createElement("div");
-        botBubble.className = "message bot";
-        
-        // Display formatted text with proper line breaks
-        botBubble.innerHTML = data.reply
-            .replace(/\n/g, '<br>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/__(.*?)__/g, '<em>$1</em>');
-        
-        chatBox.appendChild(botBubble);
+        const activeConv = findConversation(state.currentConversationId);
+        if (activeConv) {
+          const lastUserMessage = [...activeConv.messages].reverse().find(m => m.role === "user");
+          if (lastUserMessage && data.user_message_id) {
+            lastUserMessage.id = normalizeMessageId(data.user_message_id);
+          }
+        }
 
-        saveMessage("bot", data.reply);
+        saveMessage("bot", data.reply, data.bot_message_id);
+        loadConversation(state.currentConversationId);
 
         chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: "smooth" });
 

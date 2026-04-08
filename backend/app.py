@@ -138,6 +138,10 @@ class ChatRequest(BaseModel):
     message: str
     conversation_id: int | None = None
 
+
+class DeleteMessagesRequest(BaseModel):
+    message_ids: list[int]
+
 class OtpRequest(BaseModel):
     email: str
 
@@ -615,8 +619,10 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
         db.commit()
         db.refresh(conversation)
 
-    db.add(Message(conversation_id=conversation.id, role="user", content=request.message))
+    user_message = Message(conversation_id=conversation.id, role="user", content=request.message)
+    db.add(user_message)
     db.commit()
+    db.refresh(user_message)
 
     reply, reply_source = generate_reply_with_source(db, request.message)
     
@@ -632,8 +638,10 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
         except Exception:
             pass
 
-    db.add(Message(conversation_id=conversation.id, role="bot", content=reply))
+    bot_message = Message(conversation_id=conversation.id, role="bot", content=reply)
+    db.add(bot_message)
     db.commit()
+    db.refresh(bot_message)
 
     # Track unanswered questions
     if "sorry" in reply.lower() or "not available" in reply.lower() or "don't have" in reply.lower():
@@ -657,6 +665,8 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
         }
 
     response["conversation_id"] = str(conversation.id)
+    response["user_message_id"] = user_message.id
+    response["bot_message_id"] = bot_message.id
     
     return response
 
@@ -687,6 +697,7 @@ def get_chat_history(db: Session = Depends(get_db), user: User = Depends(get_cur
             "created_at": conv.created_at.isoformat(),
             "messages": [
                 {
+                    "id": msg.id,
                     "role": msg.role,
                     "text": msg.content,
                     "timestamp": msg.timestamp.isoformat()
@@ -716,6 +727,33 @@ def delete_chat_conversation(
     db.commit()
 
     return {"message": "Conversation deleted successfully"}
+
+
+@app.delete("/chat/conversations/{conversation_id}/messages")
+def delete_chat_messages(
+    conversation_id: int,
+    payload: DeleteMessagesRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    message_ids = [mid for mid in (payload.message_ids or []) if isinstance(mid, int)]
+    if not message_ids:
+        raise HTTPException(status_code=400, detail="No message IDs provided")
+
+    conversation = db.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.user_id == user.id,
+    ).first()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    deleted_count = db.query(Message).filter(
+        Message.conversation_id == conversation.id,
+        Message.id.in_(message_ids),
+    ).delete(synchronize_session=False)
+    db.commit()
+
+    return {"message": "Messages deleted successfully", "deleted_count": deleted_count}
 
 
 # ================================================================
