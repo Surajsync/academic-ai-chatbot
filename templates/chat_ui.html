@@ -275,6 +275,71 @@ html,body{
   color:#fda4af;
 }
 
+.message-context-menu{
+  position:fixed;
+  min-width:190px;
+  background:rgba(15,23,42,0.98);
+  border:1px solid var(--border-subtle);
+  border-radius:10px;
+  box-shadow:0 16px 36px rgba(0,0,0,0.45);
+  display:none;
+  z-index:400;
+  overflow:hidden;
+}
+
+.message-context-menu.open{
+  display:flex;
+  flex-direction:column;
+}
+
+.message-context-item{
+  border:none;
+  background:transparent;
+  color:var(--cream);
+  text-align:left;
+  padding:10px 12px;
+  font-size:13px;
+  cursor:pointer;
+}
+
+.message-context-item:hover{
+  background:rgba(232,130,12,0.12);
+}
+
+.message-context-item.danger{
+  color:#fda4af;
+}
+
+.delete-preview-list{
+  margin:14px 0;
+  max-height:220px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.delete-preview-item{
+  border:1px solid var(--border-subtle);
+  background:rgba(26,34,53,0.6);
+  border-radius:10px;
+  padding:10px 12px;
+}
+
+.delete-preview-role{
+  font-size:11px;
+  color:var(--saffron-pale);
+  text-transform:uppercase;
+  letter-spacing:0.7px;
+  margin-bottom:6px;
+}
+
+.delete-preview-text{
+  font-size:13px;
+  color:var(--cream);
+  line-height:1.45;
+}
+
 .header-actions .profile-edit-btn{
   background:linear-gradient(135deg,rgba(232,130,12,0.94),rgba(245,169,58,0.94));
   color:#fff;
@@ -817,6 +882,13 @@ html,body{
   <!-- TOP -->
   <div>
     <div class="profile">
+
+  <div id="message-context-menu" class="message-context-menu">
+    <button class="message-context-item" data-msg-action="toggle-select">Select Message</button>
+    <button class="message-context-item" data-msg-action="copy">Copy Message</button>
+    <button class="message-context-item danger" data-msg-action="delete-single">Delete Message</button>
+  </div>
+
       <div class="profile-icon" id="sidebar-profile-icon">👤</div>
       <div class="profile-text">
         <small id="greet-text">Good Evening</small>
@@ -932,6 +1004,7 @@ const chatOptionsBtn = document.getElementById("chat-options-btn");
 const chatOptionsDropdown = document.getElementById("chat-options-dropdown");
 const chatMenuWrap = document.getElementById("chat-menu-wrap");
 const selectedCountChip = document.getElementById("selected-count-chip");
+const messageContextMenu = document.getElementById("message-context-menu");
 const profileAvatarSlot = document.getElementById("profile-avatar-slot");
 const profileCardName = document.getElementById("profile-card-name");
 const profileCardSubtitle = document.getElementById("profile-card-subtitle");
@@ -977,6 +1050,7 @@ chatSearchInput?.addEventListener("input", () => {
 });
 chatOptionsBtn?.addEventListener("click", toggleChatOptionsMenu);
 chatOptionsDropdown?.addEventListener("click", handleChatOptionsClick);
+messageContextMenu?.addEventListener("click", handleMessageContextMenuClick);
 document.addEventListener("click", handleDocumentClick);
 
 // ================= LOAD CONVERSATIONS FROM BACKEND =================
@@ -1041,7 +1115,8 @@ const state = {
   profile: null,
   selectedMessageIds: new Set(),
   activeRenderedConversationId: null,
-  selectMode: false
+  selectMode: false,
+  contextMessageId: null
 };
 
 function normalizeConversationId(id) {
@@ -1366,10 +1441,69 @@ function closeChatOptionsMenu() {
   chatOptionsDropdown?.classList.remove("open");
 }
 
+function openMessageContextMenu(event, messageId) {
+  if (!messageContextMenu) return;
+  event.preventDefault();
+  state.contextMessageId = normalizeMessageId(messageId);
+
+  const toggleItem = messageContextMenu.querySelector('[data-msg-action="toggle-select"]');
+  const isSelected = state.selectedMessageIds.has(state.contextMessageId);
+  if (toggleItem) {
+    toggleItem.textContent = isSelected ? "Unselect Message" : "Select Message";
+  }
+
+  const viewportPadding = 8;
+  const menuWidth = 190;
+  const menuHeight = 124;
+  const x = Math.min(event.clientX, window.innerWidth - menuWidth - viewportPadding);
+  const y = Math.min(event.clientY, window.innerHeight - menuHeight - viewportPadding);
+
+  messageContextMenu.style.left = `${x}px`;
+  messageContextMenu.style.top = `${y}px`;
+  messageContextMenu.classList.add("open");
+}
+
+function closeMessageContextMenu() {
+  messageContextMenu?.classList.remove("open");
+  state.contextMessageId = null;
+}
+
 function handleDocumentClick(event) {
   if (chatMenuWrap && !chatMenuWrap.contains(event.target)) {
     closeChatOptionsMenu();
   }
+  if (messageContextMenu && !messageContextMenu.contains(event.target)) {
+    closeMessageContextMenu();
+  }
+}
+
+function handleMessageContextMenuClick(event) {
+  const item = event.target.closest("[data-msg-action]");
+  if (!item) return;
+
+  const action = item.getAttribute("data-msg-action");
+  const messageId = state.contextMessageId;
+  if (!messageId) return;
+
+  if (action === "toggle-select") {
+    setSelectMode(true);
+    const shouldSelect = !state.selectedMessageIds.has(messageId);
+    toggleMessageSelection(messageId, shouldSelect);
+    loadConversation(state.currentConversationId, { preserveSelection: true });
+  }
+
+  if (action === "copy") {
+    const message = getMessageById(messageId);
+    if (message) {
+      navigator.clipboard.writeText(String(message.text || message.content || ""));
+    }
+  }
+
+  if (action === "delete-single") {
+    openDeleteMessagesPreviewModal([messageId], "Delete this message?");
+  }
+
+  closeMessageContextMenu();
 }
 
 function handleChatOptionsClick(event) {
@@ -1426,18 +1560,86 @@ function toggleMessageSelection(messageId, isSelected) {
   updateSelectionBadge();
 }
 
-async function deleteSelectedMessages() {
+function getMessageById(messageId) {
   const conv = findConversation(state.currentConversationId);
-  if (!conv) return;
+  if (!conv || !Array.isArray(conv.messages)) return null;
+  const normalizedId = normalizeMessageId(messageId);
+  return conv.messages.find(msg => normalizeMessageId(msg.id) === normalizedId) || null;
+}
 
-  const selectedIds = Array.from(state.selectedMessageIds);
-  if (!selectedIds.length) {
-    alert("Select one or more messages to delete.");
+function getMessagesByIds(messageIds = []) {
+  const conv = findConversation(state.currentConversationId);
+  if (!conv || !Array.isArray(conv.messages)) return [];
+  const wanted = new Set(messageIds.map(normalizeMessageId));
+  return conv.messages.filter(msg => wanted.has(normalizeMessageId(msg.id)));
+}
+
+function closeDeletePreviewModal() {
+  document.getElementById("delete-preview-overlay")?.remove();
+}
+
+function openDeleteMessagesPreviewModal(messageIds = [], title = "Delete selected messages?") {
+  const normalizedIds = messageIds.map(normalizeMessageId).filter(Boolean);
+  if (!normalizedIds.length) {
+    alert("No messages selected.");
     return;
   }
 
-  const confirmed = confirm(`Delete ${selectedIds.length} selected message(s) from this chat?`);
-  if (!confirmed) return;
+  const messages = getMessagesByIds(normalizedIds);
+  if (!messages.length) {
+    alert("Selected messages were not found.");
+    return;
+  }
+
+  const previewItems = messages.slice(0, 6).map(msg => {
+    const roleLabel = msg.role === "user" ? "User" : "Bot";
+    return `
+      <div class="delete-preview-item">
+        <div class="delete-preview-role">${roleLabel}</div>
+        <div class="delete-preview-text">${escapeHtml(String(msg.text || msg.content || "").slice(0, 220))}</div>
+      </div>
+    `;
+  }).join("");
+
+  const moreCount = Math.max(0, messages.length - 6);
+  const moreNote = moreCount > 0 ? `<div class="profile-help">+${moreCount} more message(s) will also be deleted.</div>` : "";
+
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="modal-overlay" id="delete-preview-overlay">
+      <div class="profile-modal" style="max-width:640px;">
+        <div class="profile-modal-header">
+          <h2>${escapeHtml(title)}</h2>
+          <button type="button" class="profile-modal-cancel" id="delete-preview-close">Close</button>
+        </div>
+        <div class="profile-help">You are about to delete ${messages.length} message(s) from this chat. This cannot be undone.</div>
+        <div class="delete-preview-list">${previewItems}</div>
+        ${moreNote}
+        <div class="profile-modal-footer">
+          <button type="button" class="profile-modal-cancel" id="delete-preview-cancel">Cancel</button>
+          <button type="button" class="profile-modal-save" id="delete-preview-confirm">Delete</button>
+        </div>
+      </div>
+    </div>
+  `);
+
+  const overlay = document.getElementById("delete-preview-overlay");
+  overlay?.addEventListener("click", (event) => {
+    if (event.target === overlay) closeDeletePreviewModal();
+  });
+  document.getElementById("delete-preview-close")?.addEventListener("click", closeDeletePreviewModal);
+  document.getElementById("delete-preview-cancel")?.addEventListener("click", closeDeletePreviewModal);
+  document.getElementById("delete-preview-confirm")?.addEventListener("click", async () => {
+    closeDeletePreviewModal();
+    await deleteMessagesByIds(normalizedIds);
+  });
+}
+
+async function deleteMessagesByIds(messageIds = []) {
+  const conv = findConversation(state.currentConversationId);
+  if (!conv) return;
+
+  const selectedIds = messageIds.map(normalizeMessageId).filter(Boolean);
+  if (!selectedIds.length) return;
 
   const persistedMessageIds = selectedIds
     .map(id => Number(id))
@@ -1464,17 +1666,29 @@ async function deleteSelectedMessages() {
       }
     }
 
-    conv.messages = conv.messages.filter(msg => {
-      const msgId = normalizeMessageId(msg.id);
-      return !state.selectedMessageIds.has(msgId);
-    });
+    const deletingSet = new Set(selectedIds);
+    conv.messages = conv.messages.filter(msg => !deletingSet.has(normalizeMessageId(msg.id)));
 
-    clearSelectedMessages();
+    selectedIds.forEach(id => state.selectedMessageIds.delete(id));
+    updateSelectionBadge();
     updateState();
-    loadConversation(state.currentConversationId);
+    loadConversation(state.currentConversationId, { preserveSelection: true });
   } catch (error) {
     alert(error.message || "Could not delete selected messages");
   }
+}
+
+async function deleteSelectedMessages() {
+  const conv = findConversation(state.currentConversationId);
+  if (!conv) return;
+
+  const selectedIds = Array.from(state.selectedMessageIds);
+  if (!selectedIds.length) {
+    alert("Select one or more messages to delete.");
+    return;
+  }
+
+  openDeleteMessagesPreviewModal(selectedIds, `Delete ${selectedIds.length} selected message(s)?`);
 }
 
 function selectAllMessagesInCurrentChat() {
@@ -1652,36 +1866,7 @@ function createConversationItem(conv) {
     const title = document.createElement("span");
     title.textContent = conv.pinned ? "📌 " + conv.title : conv.title;
 
-    const menuBtn = document.createElement("span");
-    menuBtn.className = "menu-btn";
-    menuBtn.textContent = "⋮";
-
-    const dropdown = document.createElement("div");
-    dropdown.className = "dropdown";
-
-    dropdown.innerHTML = `
-      <div data-action="share" data-id="${convId}">Share</div>
-      <div data-action="rename" data-id="${convId}">Rename</div>
-      <div data-action="toggle-pin" data-id="${convId}">
-            ${conv.pinned ? "Unpin" : "Pin"}
-        </div>
-        ${
-            conv.archived
-          ? `<div data-action="restore" data-id="${convId}">Restore</div>`
-          : `<div data-action="archive" data-id="${convId}">Archive</div>`
-        }
-      <div data-action="delete" data-id="${convId}">Delete</div>
-    `;
-
-    menuBtn.onclick = (e) => {
-        e.stopPropagation();
-        closeDropdowns();
-        dropdown.style.display = "flex";
-    };
-
     wrapper.appendChild(title);
-    wrapper.appendChild(menuBtn);
-    wrapper.appendChild(dropdown);
     conversationList.appendChild(wrapper);
 }
 
@@ -1773,6 +1958,9 @@ function loadConversation(id, options = {}) {
       bubble.className = "message " + role;
       if (isSearchHit) bubble.classList.add("search-hit");
       if (state.selectedMessageIds.has(messageId)) bubble.classList.add("selected");
+      bubble.addEventListener("contextmenu", event => {
+        openMessageContextMenu(event, messageId);
+      });
       bubble.addEventListener("click", () => {
         if (!state.selectMode) return;
         const shouldSelect = !state.selectedMessageIds.has(messageId);
