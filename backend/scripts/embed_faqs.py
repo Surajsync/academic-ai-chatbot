@@ -1,4 +1,5 @@
 from sentence_transformers import SentenceTransformer
+import json
 from backend.database.database import SessionLocal
 from backend.database.models import FAQ
 
@@ -11,8 +12,13 @@ faqs = db.query(FAQ).all()
 print(f"Found {len(faqs)} FAQs")
 
 for faq in faqs:
-    embedding = model.encode(faq.question).tolist()
-    faq.embedding = embedding
+    source_text = " ".join(
+        part.strip()
+        for part in [faq.question or "", faq.keywords or "", faq.answer or ""]
+        if part and part.strip()
+    )
+    embedding = model.encode(source_text, normalize_embeddings=True).tolist()
+    faq.embedding = json.dumps(embedding)
 
 db.commit()
 db.close()

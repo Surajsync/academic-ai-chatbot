@@ -1,7 +1,7 @@
 from groq import Groq
 from backend.config import settings
 
-def generate_answer(context, query):
+def generate_answer(context, query, conversation_context: str = "", contact_hint: str = ""):
     if not context:
         return "No specific college data available. Please contact the relevant department or admin office for assistance."
 
@@ -30,6 +30,12 @@ VERIFIED_COLLEGE_DATA:
 STUDENT QUESTION:
 {query}
 
+RECENT CONVERSATION CONTEXT (if any):
+{conversation_context or "N/A"}
+
+ESCALATION HINT:
+{contact_hint or "Contact the Admin Office for official confirmation."}
+
 GUIDELINES:
 - Academic queries: Be detailed and helpful
 - Fee queries: Provide exact figures and clarify payment terms
@@ -42,8 +48,8 @@ GUIDELINES:
 
     response = client.chat.completions.create(
         model=settings.GROQ_MODEL,
-        temperature=0.3,  # Slightly higher for more natural responses
-        max_tokens=500,
+        temperature=0.1,
+        max_tokens=350,
         messages=[
             {
                 "role": "system",
@@ -51,7 +57,14 @@ GUIDELINES:
             },
             {
                 "role": "user",
-                "content": f"Context:\n{context}\n\nQuestion:\n{query}\n\nPlease provide a concise and informative answer based on the context. If the information is not available, suggest the appropriate department to contact."
+                "content": (
+                    f"Context:\n{context}\n\n"
+                    f"Recent Conversation:\n{conversation_context or 'N/A'}\n\n"
+                    f"Question:\n{query}\n\n"
+                    f"Escalation Hint:\n{contact_hint or 'Contact the Admin Office for official confirmation.'}\n\n"
+                    "Please provide a concise and informative answer based on the context. "
+                    "If the information is not available, suggest the appropriate department to contact."
+                )
             }
         ]
     )
@@ -76,7 +89,7 @@ Follow-up questions:"""
         client = Groq(api_key=settings.GROQ_API_KEY)
         response = client.chat.completions.create(
             model=settings.GROQ_MODEL,
-            temperature=0.5,
+            temperature=0.2,
             max_tokens=150,
             messages=[
                 {

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from .database import Base
 
 
@@ -63,7 +63,7 @@ class Conversation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="conversations")
     messages = relationship("Message", back_populates="conversation")
@@ -77,7 +77,7 @@ class Message(Base):
     role = Column(String)  # user / bot
     content = Column(Text)
     feedback = Column(String, nullable=True)  # 👍 / 👎
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     conversation = relationship("Conversation", back_populates="messages")
 
@@ -90,7 +90,7 @@ class FailedQuery(Base):
     id = Column(Integer, primary_key=True)
     query_text = Column(Text, unique=True)
     frequency = Column(Integer, default=1)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # ================= AUDIT LOG =================
@@ -101,7 +101,7 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True)
     user_email = Column(String)
     action = Column(Text)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # ================= SYSTEM SETTINGS =================
@@ -112,7 +112,7 @@ class SystemSetting(Base):
     id = Column(Integer, primary_key=True)
     maintenance_mode = Column(Boolean, default=False)
     rate_limit_per_hour = Column(Integer, default=60)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 # ================= PASSWORD RESET TOKENS =================
 
@@ -124,7 +124,7 @@ class PasswordResetToken(Base):
     token      = Column(String(200), unique=True, index=True)
     expires_at = Column(DateTime)
     used       = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 #================= COLLEGE INFO =================
 class Department(Base):

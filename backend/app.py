@@ -7,7 +7,7 @@ import logging
 import socket
 import base64
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
@@ -25,7 +25,7 @@ from backend.database.database import SessionLocal, engine
 from backend.database.models import Base, User, UserProfile, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken
 from backend.security.security import hash_password, verify_password
 from backend.services.auth_service import create_access_token
-from backend.services.chatbot_service import generate_reply_with_source
+from backend.services.chatbot_service import generate_reply_with_source, get_intent_guided_suggestions
 from backend.services.ai_service import categorize_response, generate_follow_up_suggestions
 from backend.routes import chat_routes
 
@@ -544,7 +544,7 @@ def forgot_password(data: ForgotRequest, db: Session = Depends(get_db)):
         return {"message": "If this email is registered, a reset link has been sent."}
 
     token   = secrets.token_urlsafe(32)
-    expires = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINS)
+    expires = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_EXPIRE_MINS)
 
     db.add(PasswordResetToken(email=data.email, token=token, expires_at=expires))
     db.commit()
@@ -583,7 +583,12 @@ def reset_password(data: ResetRequest, db: Session = Depends(get_db)):
     if not record:
         raise HTTPException(status_code=400, detail="Invalid or already used reset link.")
 
-    if datetime.utcnow() > record.expires_at:
+    now_utc = datetime.now(timezone.utc)
+    expires_at = record.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if now_utc > expires_at:
         raise HTTPException(status_code=400, detail="Reset link has expired. Please request a new one.")
 
     user = db.query(User).filter(User.email == record.email).first()
@@ -624,17 +629,30 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
     db.commit()
     db.refresh(user_message)
 
-    reply, reply_source = generate_reply_with_source(db, request.message)
+    recent_messages = (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation.id)
+        .order_by(Message.timestamp.desc())
+        .limit(8)
+        .all()
+    )
+    conversation_history = [
+        {"role": msg.role, "content": msg.content}
+        for msg in reversed(recent_messages)
+    ]
+
+    reply, reply_source = generate_reply_with_source(db, request.message, conversation_history=conversation_history)
     
     # Categorize the response
     category = categorize_response(request.message)
     
-    # Generate follow-up suggestions (only if AI response was successful)
-    suggestions = []
+    # Generate follow-up suggestions from deterministic intent map first.
+    suggestions = get_intent_guided_suggestions(request.message)
     if reply_source == "groq":
         try:
             from backend.services.ai_service import generate_follow_up_suggestions
-            suggestions = generate_follow_up_suggestions("", request.message, reply)
+            ai_suggestions = generate_follow_up_suggestions("", request.message, reply)
+            suggestions = (ai_suggestions + suggestions)[:3]
         except Exception:
             pass
 

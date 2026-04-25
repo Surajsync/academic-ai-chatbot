@@ -66,6 +66,106 @@ uvicorn backend.app:app --reload
 
 Open http://127.0.0.1:8000 after the server starts. The home page serves the auth UI.
 
+## FAQ Seeding (Production Safe)
+
+The FAQ seeder now supports validation, deduplication, upsert modes, optional embedding generation, and dry-run preview.
+It also supports strict validation mode and JSON reports for CI/CD.
+
+Default source file:
+
+- `backend/data/faq_optimized.csv`
+
+Run from project root:
+
+```bash
+source projectenv/bin/activate
+
+# 1) Validate input and preview DB changes only
+python3 backend/database/seed/seed_faq.py --dry-run
+
+# 2) Apply updates (upsert by normalized question)
+python3 backend/database/seed/seed_faq.py --mode merge
+
+# 3) Optional: deactivate stale FAQs not present in source
+python3 backend/database/seed/seed_faq.py --mode merge --deactivate-missing
+
+# 4) Optional: generate embeddings for rows that do not have one
+python3 backend/database/seed/seed_faq.py --mode merge --embed-missing
+
+# 5) Optional: fail fast if any rows are rejected by validation
+python3 backend/database/seed/seed_faq.py --dry-run --strict
+
+# 6) Optional: write machine-readable summary for pipelines
+python3 backend/database/seed/seed_faq.py --mode merge --report-json backend/data/seed_report.json
+
+# 7) Optional: generate a cleaned FAQ source file (drop rejected rows + dedupe)
+python3 backend/database/seed/seed_faq.py --clean-output backend/data/faq_cleaned.csv --clean-only
+
+# 8) Strict-validate cleaned source before production import
+python3 backend/database/seed/seed_faq.py --source backend/data/faq_cleaned.csv --dry-run --strict
+```
+
+Supported sources:
+
+- CSV with columns like `question,answer,keywords` (recommended)
+- JSON array with keys like `question,answer,keywords,embedding,is_active`
+
+Importer modes:
+
+- `merge`: update existing questions and insert new ones
+- `append`: insert only new questions, skip existing
+- `replace`: deactivate all existing FAQs, then upsert source rows
+
+Additional safety flags:
+
+- `--strict`: fails the run if any source rows are rejected by validation
+- `--report-json <path>`: writes a JSON summary including rejected rows and DB upsert stats
+- `--clean-output <path>`: writes validated + deduplicated rows to CSV/JSON
+- `--clean-only`: stops after writing cleaned output (no DB upsert)
+
+What is filtered automatically:
+
+- Empty question/answer rows
+- Low-quality rows like short placeholders
+- Metadata leak rows such as answers starting with `Source:` or containing raw spreadsheet file references
+
+## Deploy / Redeploy Checklist
+
+Use this sequence for production updates (Render or similar platform):
+
+```bash
+# A) Update FAQ dataset (edit backend/data/faq_optimized.csv)
+
+# B) Preview seeding results locally
+python3 backend/database/seed/seed_faq.py --dry-run --strict --report-json backend/data/seed_report.json
+
+# C) Apply seeding locally or in a release job
+python3 backend/database/seed/seed_faq.py --mode merge --deactivate-missing
+
+# D) Rebuild embeddings from final FAQ content (recommended)
+python3 backend/scripts/embed_faqs.py
+
+# E) Commit and push code/data changes
+git add backend/database/seed/seed_faq.py backend/data/faq_optimized.csv README.md
+git commit -m "upgrade faq seeding pipeline"
+git push
+```
+
+Render configuration reminders:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn backend.app:app --host 0.0.0.0 --port $PORT`
+- Health check path: `/healthz`
+- Required env vars: `DATABASE_URL`, `SECRET_KEY`
+- LLM env vars as needed: `ENABLE_LLM`, `GROQ_API_KEY`, `GROQ_MODEL`
+
+Post-deploy verification:
+
+1. Check `/healthz`
+2. Open `/admin/faqs` and verify FAQ count and sample entries
+3. Test greeting, fee, placement, hostel, and scholarship queries
+4. Confirm no response leaks `Source:` or raw file names
+
 ## Render Deployment Notes
 
 Use these settings for a FastAPI Web Service on Render:

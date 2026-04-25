@@ -99,6 +99,10 @@ HOD_QUERY_HINTS = {"hod", "head", "faculty"}
 CLUB_QUERY_HINTS = {"club", "clubs", "society", "activities", "extracurricular"}
 PLACEMENT_QUERY_HINTS = {"placement", "placements", "job", "company", "companies", "recruit", "internship"}
 SCHOLARSHIP_QUERY_HINTS = {"scholarship", "scholarships", "grant", "financial", "assistance"}
+ADMISSION_QUERY_HINTS = {"admission", "admissions", "apply", "eligibility", "cutoff", "registration"}
+EXAM_QUERY_HINTS = {"exam", "exams", "examination", "result", "results", "marksheet", "backlog", "arrear"}
+TIMETABLE_QUERY_HINTS = {"timetable", "schedule", "routine", "calendar", "class timing", "semester"}
+CONTACT_QUERY_HINTS = {"contact", "email", "phone", "address", "location", "office"}
 
 FEE_RECORD_HINTS = {"fee", "fees", "tuition", "fee structure", "hostel fee"}
 HOD_RECORD_HINTS = {"hod", "head of department", "head"}
@@ -110,6 +114,17 @@ GREETING_TOKENS = {
     "hi", "hii", "hiii", "hello", "hey", "yo", "hola", "namaste", "hlo", "sup"
 }
 THANKS_TOKENS = {"thanks", "thank", "thx", "thankyou", "thankyou!", "thankyou."}
+
+DOMAIN_KEYWORDS = {
+    "rec", "bijnor", "aktu", "department", "branch", "fee", "hostel", "placement",
+    "scholarship", "college", "faculty", "hod", "syllabus", "exam", "result", "admission",
+    "club", "campus", "semester", "timetable", "library", "lab", "attendance",
+}
+
+OUT_OF_SCOPE_SIGNALS = {
+    "weather", "temperature", "news", "stock", "crypto", "movie", "song", "politics",
+    "prime minister", "president", "ipl", "cricket score", "bitcoin", "share market",
+}
 
 
 def _is_llm_enabled() -> bool:
@@ -150,6 +165,10 @@ def _clean_reply_text(reply: str) -> str:
     return cleaned or OUT_OF_SCOPE_REPLY
 
 
+def _clean_spaces(value: str) -> str:
+    return re.sub(r"\s+", " ", (value or "")).strip()
+
+
 def _detect_intent(query_tokens: set[str]) -> str:
     if query_tokens.intersection(FEE_QUERY_HINTS):
         return "fee"
@@ -161,7 +180,74 @@ def _detect_intent(query_tokens: set[str]) -> str:
         return "placement"
     if query_tokens.intersection(SCHOLARSHIP_QUERY_HINTS):
         return "scholarship"
+    if query_tokens.intersection(ADMISSION_QUERY_HINTS):
+        return "admission"
+    if query_tokens.intersection(EXAM_QUERY_HINTS):
+        return "exam"
+    if query_tokens.intersection(TIMETABLE_QUERY_HINTS):
+        return "timetable"
+    if query_tokens.intersection(CONTACT_QUERY_HINTS):
+        return "contact"
     return "general"
+
+
+def _is_probably_out_of_scope(normalized_message: str, query_tokens: set[str]) -> bool:
+    if not normalized_message:
+        return False
+
+    if any(signal in normalized_message for signal in OUT_OF_SCOPE_SIGNALS):
+        return True
+
+    # Keep generic short messages in-domain so greetings/small talk work naturally.
+    if len(query_tokens) <= 2:
+        return False
+
+    has_domain_signal = bool(query_tokens.intersection(DOMAIN_KEYWORDS))
+    return not has_domain_signal
+
+
+def _intent_contact_hint(intent: str) -> str:
+    hints = {
+        "admission": "For admission-specific updates, contact the Admission Cell.",
+        "exam": "For exam schedules and result corrections, contact the Exam Cell.",
+        "timetable": "For timetable changes, contact your Department Office.",
+        "placement": "For placements, contact the Training and Placement Cell.",
+        "scholarship": "For scholarship support, contact the Scholarship Cell.",
+        "contact": "For official communication, contact the Admin Office.",
+    }
+    return hints.get(intent, "For official confirmation, contact the Admin Office.")
+
+
+def _build_recent_history_context(conversation_history: list[dict] | None) -> str:
+    if not conversation_history:
+        return ""
+
+    lines = []
+    for item in conversation_history[-6:]:
+        role = (item.get("role") or "").strip().lower()
+        content = _clean_spaces(item.get("content") or "")
+        if not content or role not in {"user", "bot"}:
+            continue
+        lines.append(f"{role.upper()}: {content}")
+    return "\n".join(lines)
+
+
+def get_intent_guided_suggestions(message: str) -> list[str]:
+    query_tokens = _tokenize(_expand_aliases(message or ""))
+    intent = _detect_intent(query_tokens)
+
+    suggestions = {
+        "fee": ["Ask fee breakup by year", "Ask hostel fee details", "Ask payment schedule"],
+        "hod": ["Ask department faculty list", "Ask department contact details", "Ask office timings"],
+        "placement": ["Ask top recruiters", "Ask average package by branch", "Ask T&P cell contact"],
+        "scholarship": ["Ask scholarship eligibility", "Ask required documents", "Ask scholarship deadlines"],
+        "admission": ["Ask admission eligibility", "Ask required documents", "Ask admission deadlines"],
+        "exam": ["Ask exam schedule", "Ask result portal details", "Ask backlog exam process"],
+        "timetable": ["Ask semester calendar", "Ask class timings", "Ask lab schedule"],
+        "contact": ["Ask official email", "Ask office phone number", "Ask campus address"],
+        "general": ["Ask department information", "Ask fee structure", "Ask placement details"],
+    }
+    return suggestions.get(intent, suggestions["general"])[:3]
 
 
 def _normalize(text: str) -> str:
@@ -190,6 +276,17 @@ def _score_overlap(query_tokens: set[str], candidate_text: str) -> int:
     if not candidate_tokens:
         return 0
     return len(query_tokens.intersection(candidate_tokens))
+
+
+def _top_scored_records(records, query_tokens: set[str], text_getter, limit: int = 3, min_score: int = 1):
+    ranked = []
+    for record in records:
+        score = _score_overlap(query_tokens, text_getter(record))
+        if score >= min_score:
+            ranked.append((score, record))
+
+    ranked.sort(key=lambda row: row[0], reverse=True)
+    return [record for _score, record in ranked[:limit]]
 
 
 def _small_talk_reply(normalized_message: str, query_tokens: set[str]) -> tuple[str, str] | None:
@@ -340,11 +437,13 @@ def build_context(db: Session, message: str) -> str:
         lines.append("")
 
     departments = db.query(Department).all()
-    department_lines = []
-    for dept in departments:
-        score = _score_overlap(query_tokens, f"{dept.name} {dept.hod}")
-        if score >= 1:
-            department_lines.append(f"  • {dept.name} - HOD: {dept.hod}")
+    top_departments = _top_scored_records(
+        departments,
+        query_tokens,
+        lambda dept: f"{dept.name} {dept.hod}",
+        limit=3,
+    )
+    department_lines = [f"  • {dept.name} - HOD: {dept.hod}" for dept in top_departments]
 
     if department_lines:
         lines.append("🏫 DEPARTMENTS:")
@@ -352,11 +451,13 @@ def build_context(db: Session, message: str) -> str:
         lines.append("")
 
     fees = db.query(FeeStructure).all()
-    fee_lines = []
-    for fee in fees:
-        score = _score_overlap(query_tokens, f"{fee.branch} {fee.amount}")
-        if score >= 1:
-            fee_lines.append(f"  • {fee.branch}: ₹{fee.amount}")
+    top_fees = _top_scored_records(
+        fees,
+        query_tokens,
+        lambda fee: f"{fee.branch} {fee.amount}",
+        limit=3,
+    )
+    fee_lines = [f"  • {fee.branch}: ₹{fee.amount}" for fee in top_fees]
 
     if fee_lines:
         lines.append("💰 FEE STRUCTURE:")
@@ -364,15 +465,17 @@ def build_context(db: Session, message: str) -> str:
         lines.append("")
 
     clubs = db.query(Club).all()
-    club_lines = []
-    for club in clubs:
-        score = _score_overlap(query_tokens, f"{club.name} {club.category}")
-        if score >= 1 or intent == "club":
-            club_lines.append(club)
+    top_clubs = _top_scored_records(
+        clubs,
+        query_tokens,
+        lambda club: f"{club.name} {club.category}",
+        limit=4,
+        min_score=0 if intent == "club" else 1,
+    )
 
-    if club_lines:
+    if top_clubs:
         lines.append("🎯 CLUBS & ACTIVITIES:")
-        for club in club_lines[:8]:
+        for club in top_clubs:
             lines.append(f"  • {club.name} ({club.category}): {club.description}")
         lines.append("")
 
@@ -382,13 +485,20 @@ def build_context(db: Session, message: str) -> str:
         branches = set()
         placement_lines = []
         
+        top_placements = _top_scored_records(
+            placements,
+            query_tokens,
+            lambda placement: f"{placement.student_name} {placement.company_name} {placement.branch}",
+            limit=5,
+            min_score=0 if intent == "placement" else 1,
+        )
+
         for placement in placements:
             companies.add(placement.company_name)
             branches.add(placement.branch)
-            if len(placement_lines) < 5:
-                score = _score_overlap(query_tokens, f"{placement.student_name} {placement.company_name} {placement.branch}")
-                if score >= 1 or intent == "placement":
-                    placement_lines.append(f"  • {placement.student_name} ({placement.branch}): {placement.company_name}, ₹{placement.package_lpa} LPA")
+
+        for placement in top_placements:
+            placement_lines.append(f"  • {placement.student_name} ({placement.branch}): {placement.company_name}, ₹{placement.package_lpa} LPA")
         
         if placement_lines:
             lines.append("🎓 PLACEMENT RECORDS:")
@@ -409,11 +519,17 @@ def build_context(db: Session, message: str) -> str:
                 lines.append(f"  • {placement.student_name} ({placement.branch}): {placement.company_name}, ₹{placement.package_lpa} LPA")
 
     scholarships = db.query(ScholarshipCell).all()
-    scholarship_lines = []
-    for scholarship in scholarships:
-        score = _score_overlap(query_tokens, f"{scholarship.name} {scholarship.designation}")
-        if score >= 1 or intent == "scholarship":
-            scholarship_lines.append(f"  • {scholarship.name} ({scholarship.designation}): {scholarship.category}, Ph: {scholarship.contact_no}")
+    top_scholarships = _top_scored_records(
+        scholarships,
+        query_tokens,
+        lambda scholarship: f"{scholarship.name} {scholarship.designation}",
+        limit=4,
+        min_score=0 if intent == "scholarship" else 1,
+    )
+    scholarship_lines = [
+        f"  • {scholarship.name} ({scholarship.designation}): {scholarship.category}, Ph: {scholarship.contact_no}"
+        for scholarship in top_scholarships
+    ]
 
     if scholarship_lines:
         lines.append("")
@@ -423,12 +539,19 @@ def build_context(db: Session, message: str) -> str:
     return "\n".join(lines)
 
 
-def _generate_reply_with_source(db: Session, message: str):
+def _generate_reply_with_source(db: Session, message: str, conversation_history: list[dict] | None = None):
     original_message = message.strip()
     normalized_message = original_message.lower()
 
     expanded_query = _expand_aliases(normalized_message)
     query_tokens = _tokenize(expanded_query)
+
+    if _is_probably_out_of_scope(normalized_message, query_tokens):
+        reply = (
+            "I can help only with REC Bijnor academic and campus queries, such as admissions, fees, "
+            "departments, timetable, exams, placements, clubs, and scholarships."
+        )
+        return _clean_reply_text(reply), "scope-guard"
 
     small_talk = _small_talk_reply(normalized_message, query_tokens)
     if small_talk:
@@ -445,18 +568,21 @@ def _generate_reply_with_source(db: Session, message: str):
         # Deterministic fast path for fee queries when a strong FAQ exists.
         return _clean_reply_text(_faq_response_text(top_faq[0])), "faq"
 
-    # Avoid guessing HOD from weak/general FAQ entries.
-    if intent == "hod":
-        return _clean_reply_text(OUT_OF_SCOPE_REPLY), "fallback"
-
     context = build_context(db, normalized_message)
     if not context:
         return _clean_reply_text(OUT_OF_SCOPE_REPLY), "fallback"
 
+    contact_hint = _intent_contact_hint(intent)
+    recent_history = _build_recent_history_context(conversation_history)
+
     if _is_llm_enabled():
         try:
-            # print("DEBUG CONTEXT:", context)
-            ai_reply = generate_answer(context, original_message)
+            ai_reply = generate_answer(
+                context,
+                original_message,
+                conversation_context=recent_history,
+                contact_hint=contact_hint,
+            )
             if ai_reply:
                 return _clean_reply_text(ai_reply), "groq"
         except Exception as exc:
@@ -479,8 +605,8 @@ def generate_reply(db: Session, message: str):
     return reply
 
 
-def generate_reply_with_source(db: Session, message: str):
-    return _generate_reply_with_source(db, message)
+def generate_reply_with_source(db: Session, message: str, conversation_history: list[dict] | None = None):
+    return _generate_reply_with_source(db, message, conversation_history=conversation_history)
 
 
 # Semantic search implementation using sentence embeddings for improved relevance ranking.
@@ -496,35 +622,39 @@ def semantic_faq_search(query: str):
     if np_module is None or sentence_transformer_class is None:
         return None
 
-    db= SessionLocal()
+    db = SessionLocal()
 
-    model = _get_embedding_model()
-    query_embedding = model.encode(query)
-    faqs = db.query(FAQ).filter(FAQ.is_active == True).all()
+    try:
+        model = _get_embedding_model()
+        if model is None:
+            return None
 
-    best_score = -1
-    best_faq = None
+        query_embedding = model.encode(_expand_aliases(query), normalize_embeddings=True)
+        faqs = db.query(FAQ).filter(FAQ.is_active == True).all()
 
-    for faq in faqs:
-        if not getattr(faq, "embedding", None):
-            continue
+        best_score = -1.0
+        best_faq = None
 
-        try:
-            stored_embedding = np_module.array(json.loads(faq.embedding))
-        except Exception:
-            continue
+        for faq in faqs:
+            if not getattr(faq, "embedding", None):
+                continue
 
-        score = cosine_similarity(query_embedding, stored_embedding)
+            try:
+                stored_embedding = np_module.array(json.loads(faq.embedding), dtype=float)
+            except Exception:
+                continue
 
-        if score > best_score:
-            best_score = score
-            best_faq = faq
-        
-    db.close()
-    if best_faq is not None and best_score >= 0.65:  # Slightly relaxed threshold for better recall
-        return _faq_response_text(best_faq), "semantic", best_score
-    else:
+            score = cosine_similarity(query_embedding, stored_embedding)
+
+            if score > best_score:
+                best_score = score
+                best_faq = faq
+
+        if best_faq is not None and best_score >= 0.65:
+            return _faq_response_text(best_faq), "semantic", best_score
         return None
+    finally:
+        db.close()
 
 
 # Main entry point for chatbot response generation, combining structured lookup, semantic search, and LLM fallback.
@@ -532,8 +662,8 @@ def get_response(query: str):
     db = SessionLocal()
 
     try:
-        # preprocess (if you already have it)
-        query_tokens = set(query.lower().split()) #later optimize with better tokenization and stopword removal
+        expanded_query = _expand_aliases(query)
+        query_tokens = _tokenize(expanded_query)
 
         # 1. Structured answer
         structured = _direct_structured_answer(db, query_tokens)

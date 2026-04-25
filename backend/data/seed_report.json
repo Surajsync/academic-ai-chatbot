@@ -1,0 +1,13 @@
+{
+  "success": false,
+  "error": "Strict validation failed. Rejected rows: low-quality-answer=138",
+  "source": "/home/suraj-singh/Desktop/chatbot_project/backend/data/faq_optimized.csv",
+  "mode": "merge",
+  "dry_run": true,
+  "strict": true,
+  "rows_validated": 30,
+  "rejected": {
+    "low-quality-answer": 138
+  },
+  "input_duplicates_removed": 0
+}
