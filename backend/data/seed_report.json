@@ -1,13 +1,18 @@
 {
-  "success": false,
-  "error": "Strict validation failed. Rejected rows: low-quality-answer=138",
+  "success": true,
   "source": "/home/suraj-singh/Desktop/chatbot_project/backend/data/faq_optimized.csv",
   "mode": "merge",
   "dry_run": true,
-  "strict": true,
-  "rows_validated": 30,
-  "rejected": {
-    "low-quality-answer": 138
-  },
-  "input_duplicates_removed": 0
+  "strict": false,
+  "clean_only": false,
+  "cleaned_output": "",
+  "rows_validated": 66,
+  "rejected": {},
+  "input_duplicates_removed": 0,
+  "stats": {
+    "inserted": 66,
+    "updated": 0,
+    "deactivated": 0,
+    "skipped": 0
+  }
 }

@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from .database import Base
+from sqlalchemy.dialects.postgresql import ARRAY
 
 
 # ================= USERS =================
@@ -52,7 +53,7 @@ class FAQ(Base):
     question = Column(Text)
     answer = Column(Text)
     keywords = Column(Text)
-    embedding = Column(Text) 
+    embedding = Column(ARRAY(Float))
     is_active = Column(Boolean, default=True)
 
 

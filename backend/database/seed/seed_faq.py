@@ -76,10 +76,10 @@ def _normalize_embedding(raw_embedding: Any) -> str | None:
         text = raw_embedding.strip()
         if not text:
             return None
-        # Accept already serialized vectors.
-        return text
+        import json
+        return [float(x) for x in json.loads(text)]
     if isinstance(raw_embedding, list):
-        return json.dumps(raw_embedding)
+        return [float(x) for x in raw_embedding]
     return None
 
 
@@ -98,7 +98,6 @@ def _dict_to_row(item: dict[str, Any]) -> tuple[FAQRow | None, str | None]:
     question = _clean_spaces(str(item.get("question") or item.get("keyword") or item.get("keywords") or ""))
     answer = _clean_spaces(str(item.get("answer") or item.get("response") or ""))
     keywords = _normalize_keywords(str(item.get("keywords") or item.get("keyword") or ""), question)
-    embedding = _normalize_embedding(item.get("embedding"))
     is_active = _parse_bool(item.get("is_active"), default=True)
 
     if not question or not answer:
@@ -111,7 +110,6 @@ def _dict_to_row(item: dict[str, Any]) -> tuple[FAQRow | None, str | None]:
             question=question,
             answer=answer,
             keywords=keywords,
-            embedding=embedding,
             is_active=is_active,
         ),
         None,
@@ -228,8 +226,7 @@ def _dedupe_rows(rows: list[FAQRow]) -> tuple[list[FAQRow], int]:
 
 
 def _build_embedding_model(enable_embeddings: bool):
-    if not enable_embeddings:
-        return None
+    return None
 
     try:
         from sentence_transformers import SentenceTransformer
@@ -246,7 +243,7 @@ def _upsert_faqs(
     rows: list[FAQRow],
     dry_run: bool,
     deactivate_missing: bool,
-    embed_missing: bool,
+    embed_missing: False,
 ) -> dict[str, int]:
     db = SessionLocal()
     stats = {
@@ -278,19 +275,11 @@ def _upsert_faqs(
             if not key:
                 stats["skipped"] += 1
                 continue
-
-            embedding = row.embedding
-            if not embedding and model is not None:
-                source_text = " ".join(part for part in [row.question, row.keywords, row.answer] if part)
-                embedding = json.dumps(model.encode(source_text, normalize_embeddings=True).tolist())
-
             existing = existing_by_key.get(key)
             if existing and mode in {"merge", "replace"}:
                 existing.question = row.question
                 existing.answer = row.answer
                 existing.keywords = row.keywords
-                if embedding:
-                    existing.embedding = embedding
                 existing.is_active = row.is_active
                 stats["updated"] += 1
                 continue
@@ -304,7 +293,6 @@ def _upsert_faqs(
                     question=row.question,
                     answer=row.answer,
                     keywords=row.keywords,
-                    embedding=embedding,
                     is_active=row.is_active,
                 )
             )

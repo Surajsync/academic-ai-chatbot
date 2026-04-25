@@ -17,9 +17,9 @@ for faq in faqs:
         for part in [faq.question or "", faq.keywords or "", faq.answer or ""]
         if part and part.strip()
     )
-    embedding = model.encode(source_text, normalize_embeddings=True).tolist()
-    faq.embedding = json.dumps(embedding)
-
+    embedding = model.encode(source_text, normalize_embeddings=True)
+    faq.embedding = embedding.tolist()
+    
 db.commit()
 db.close()
 
