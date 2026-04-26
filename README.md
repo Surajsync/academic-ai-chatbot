@@ -166,6 +166,25 @@ Post-deploy verification:
 3. Test greeting, fee, placement, hostel, and scholarship queries
 4. Confirm no response leaks `Source:` or raw file names
 
+## FAQ Quality Gate (New)
+
+Automated FAQ data-quality checks now run in CI on push/PR via GitHub Actions:
+
+- `.github/workflows/faq-data-quality.yml`
+
+It validates:
+
+- CSV schema (`question,answer,keywords`)
+- non-empty question/answer rows
+- duplicate normalized questions
+- accidental editor lock files in `backend/data/`
+
+Run the same checks locally before pushing:
+
+```bash
+./projectenv/bin/python -m unittest discover -s tests -p "test_faq_data_quality.py" -q
+```
+
 ## Render Deployment Notes
 
 Use these settings for a FastAPI Web Service on Render:

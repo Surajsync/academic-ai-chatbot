@@ -177,6 +177,82 @@ html,body{
 }
 
 
+.assistant-tools{
+  margin:10px 0 14px;
+  padding:12px;
+  border:1px solid var(--border-subtle);
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(22,30,45,0.75),rgba(14,17,23,0.72));
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.assistant-tools-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:0.6px;
+  text-transform:uppercase;
+}
+
+.tool-search-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.tool-clear-btn,
+.tool-action-btn,
+.tool-role-btn{
+  border:1px solid var(--border-subtle);
+  background:rgba(255,255,255,0.04);
+  color:var(--cream);
+  border-radius:10px;
+  padding:8px 11px;
+  font-size:12px;
+  font-weight:500;
+  cursor:pointer;
+}
+
+.tool-clear-btn:hover,
+.tool-action-btn:hover,
+.tool-role-btn:hover{
+  background:rgba(232,130,12,0.12);
+  border-color:rgba(232,130,12,0.24);
+}
+
+.tool-role-btn.active{
+  background:rgba(232,130,12,0.24);
+  border-color:rgba(232,130,12,0.42);
+}
+
+.tool-grid{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.tool-group{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.tool-action-btn.danger{
+  color:#fda4af;
+}
+
+.search-summary{
+  color:var(--muted);
+  font-size:12px;
+}
+
+
 .chat-toolbar{
   display:flex;
   gap:12px;
@@ -743,6 +819,93 @@ html,body{
   color:white;
 }
 
+.message.bot.rich-reply{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.bot-head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.7px;
+  color:var(--muted);
+}
+
+.bot-source-badge{
+  border:1px solid rgba(245,169,58,0.35);
+  background:rgba(245,169,58,0.12);
+  color:var(--saffron-pale);
+  border-radius:999px;
+  padding:2px 8px;
+  font-weight:600;
+}
+
+.bot-content p{
+  margin:0;
+}
+
+.bot-content p + p{
+  margin-top:6px;
+}
+
+.bot-list{
+  margin:0;
+  padding-left:18px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.bot-suggestions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.suggestion-chip-btn{
+  border:1px solid rgba(232,130,12,0.35);
+  background:rgba(232,130,12,0.12);
+  color:var(--cream);
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  cursor:pointer;
+}
+
+.suggestion-chip-btn:hover{
+  background:rgba(232,130,12,0.22);
+}
+
+.streaming-row .message{
+  position:relative;
+}
+
+.streaming-content{
+  white-space:pre-wrap;
+  line-height:1.55;
+  min-height:18px;
+}
+
+.streaming-content::after{
+  content:"";
+  display:inline-block;
+  width:8px;
+  height:1.05em;
+  margin-left:3px;
+  vertical-align:-2px;
+  background:rgba(245,169,58,0.9);
+  animation:streamCaret 1s steps(1,end) infinite;
+}
+
+@keyframes streamCaret {
+  0%, 49% { opacity:1; }
+  50%, 100% { opacity:0; }
+}
+
 /* Input */
 .chat-input{
   display:flex;
@@ -767,6 +930,23 @@ html,body{
   color:white;
   font-weight:500;
   cursor:pointer;
+}
+
+.chat-input button:disabled{
+  opacity:0.72;
+  cursor:not-allowed;
+}
+
+#stop-btn{
+  display:none;
+  width:95px;
+  background:rgba(244,63,94,0.14);
+  border:1px solid rgba(244,63,94,0.3);
+  color:#ffd7dd;
+}
+
+#stop-btn:hover{
+  background:rgba(244,63,94,0.22);
 }
 /* ━━━━━━━━━ CONVERSATION ITEM━━━━━━━━━ */
 .conversation-item{
@@ -879,27 +1059,19 @@ html,body{
 <!-- SIDEBAR -->
 <div class="sidebar">
 
-  <!-- TOP -->
-  <div>
-    <div class="profile">
-
   <div id="message-context-menu" class="message-context-menu">
     <button class="message-context-item" data-msg-action="toggle-select">Select Message</button>
     <button class="message-context-item" data-msg-action="copy">Copy Message</button>
     <button class="message-context-item danger" data-msg-action="delete-single">Delete Message</button>
   </div>
 
-      <div class="profile-icon" id="sidebar-profile-icon">👤</div>
-      <div class="profile-text">
-        <small id="greet-text">Good Evening</small>
-        <h3 id="sidebar-username">User</h3>
-      </div>
-    </div>
-
+  <!-- TOP -->
+  <div>
     <div class="profile-card">
       <div class="profile-card-top">
         <div class="profile-avatar" id="profile-avatar-slot">👤</div>
         <div>
+          <div class="profile-card-sub" id="greet-text">Good Evening</div>
           <div class="profile-card-name" id="profile-card-name">Your profile</div>
           <div class="profile-card-sub" id="profile-card-subtitle">Add a photo, department, phone, and more.</div>
         </div>
@@ -934,27 +1106,35 @@ html,body{
       <h1>Rajkiya Engineering College, Bijnor</h1>
       <p class="sub-title">Academic AI</p>
     </div>
-
-    <div class="header-actions">
-      <div class="chat-menu-wrap" id="chat-menu-wrap">
-        <button id="chat-options-btn" class="chat-options-btn" type="button" aria-label="Chat options">
-          <span>⋯</span>
-          <span id="selected-count-chip" class="selected-chip is-hidden">0</span>
-        </button>
-        <div id="chat-options-dropdown" class="chat-options-dropdown">
-          <button class="chat-option-item" data-chat-action="toggle-select-mode">Enable Selection</button>
-          <button class="chat-option-item" data-chat-action="select-all">Select All Messages</button>
-          <button class="chat-option-item" data-chat-action="unselect-all">Unselect All</button>
-          <button class="chat-option-item danger" data-chat-action="delete-selected">Delete Selected</button>
-          <button class="chat-option-item" data-chat-action="export-chat">Export Chat</button>
-          <button class="chat-option-item danger" data-chat-action="clear-chat">Clear Chat</button>
-        </div>
-      </div>
-    </div>
   </div>
 
-  <div class="chat-toolbar">
-    <input id="chat-search-input" class="tool-search" type="text" placeholder="Search in this chat...">
+  <div class="assistant-tools" id="assistant-tools">
+    <div class="assistant-tools-head">
+      <span>Academic AI Workspace</span>
+      <span id="search-result-count" class="search-summary">Showing all messages</span>
+    </div>
+
+    <div class="tool-search-wrap">
+      <input id="chat-search-input" class="tool-search" type="text" placeholder="Search this conversation...">
+      <button id="clear-search-btn" class="tool-clear-btn" type="button">Clear</button>
+    </div>
+
+    <div class="tool-grid">
+      <div class="tool-group" id="search-role-filters">
+        <button class="tool-role-btn active" type="button" data-search-role="all">All</button>
+        <button class="tool-role-btn" type="button" data-search-role="user">Student</button>
+        <button class="tool-role-btn" type="button" data-search-role="bot">Assistant</button>
+      </div>
+      <div class="tool-group" id="chat-action-tools">
+        <button id="toggle-select-btn" class="tool-action-btn" type="button" data-chat-action="toggle-select-mode">Enable Selection</button>
+        <button class="tool-action-btn" type="button" data-chat-action="select-all">Select All</button>
+        <button class="tool-action-btn" type="button" data-chat-action="unselect-all">Clear Selection</button>
+        <button class="tool-action-btn danger" type="button" data-chat-action="delete-selected">Delete Selected</button>
+        <button class="tool-action-btn" type="button" data-chat-action="export-chat">Export</button>
+        <button class="tool-action-btn danger" type="button" data-chat-action="clear-chat">Clear Chat</button>
+        <span id="selected-count-chip" class="selected-chip is-hidden">0 selected</span>
+      </div>
+    </div>
   </div>
 
   <div class="chat-box" id="chat-box"></div>
@@ -962,6 +1142,7 @@ html,body{
   <div class="chat-input">
     <input type="text" id="user-input" placeholder="Type your message...">
     <button id="send-btn">Send</button>
+    <button id="stop-btn" type="button">Stop</button>
   </div>
 
 </div>
@@ -971,8 +1152,11 @@ html,body{
 
 // ================= USERNAME + GREETING =================
 const username = localStorage.getItem("username");
+const profileNameNode = document.getElementById("profile-card-name");
 if (username) {
-    document.getElementById("sidebar-username").innerText = username;
+    if (profileNameNode) {
+      profileNameNode.innerText = username;
+    }
 
     const hour = new Date().getHours();
     let greet = "Good Evening";
@@ -997,18 +1181,20 @@ if (roleCheck === "admin") {
 const chatBox = document.getElementById("chat-box");
 const input = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
+const stopBtn = document.getElementById("stop-btn");
 const conversationList = document.getElementById("conversation-list");
 const editProfileBtn = document.getElementById("edit-profile-btn");
 const chatSearchInput = document.getElementById("chat-search-input");
-const chatOptionsBtn = document.getElementById("chat-options-btn");
-const chatOptionsDropdown = document.getElementById("chat-options-dropdown");
-const chatMenuWrap = document.getElementById("chat-menu-wrap");
+const clearSearchBtn = document.getElementById("clear-search-btn");
+const searchResultCount = document.getElementById("search-result-count");
+const assistantTools = document.getElementById("assistant-tools");
+const searchRoleFilters = document.getElementById("search-role-filters");
 const selectedCountChip = document.getElementById("selected-count-chip");
+const toggleSelectBtn = document.getElementById("toggle-select-btn");
 const messageContextMenu = document.getElementById("message-context-menu");
 const profileAvatarSlot = document.getElementById("profile-avatar-slot");
 const profileCardName = document.getElementById("profile-card-name");
 const profileCardSubtitle = document.getElementById("profile-card-subtitle");
-const sidebarProfileIcon = document.getElementById("sidebar-profile-icon");
 const API_BASE = window.location.origin;
 
 async function enforceChatAccess() {
@@ -1048,8 +1234,16 @@ editProfileBtn?.addEventListener("click", openProfileModal);
 chatSearchInput?.addEventListener("input", () => {
   loadConversation(state.currentConversationId, { preserveSelection: true });
 });
-chatOptionsBtn?.addEventListener("click", toggleChatOptionsMenu);
-chatOptionsDropdown?.addEventListener("click", handleChatOptionsClick);
+clearSearchBtn?.addEventListener("click", () => {
+  if (chatSearchInput) chatSearchInput.value = "";
+  loadConversation(state.currentConversationId, { preserveSelection: true });
+});
+searchRoleFilters?.addEventListener("click", event => {
+  const button = event.target.closest("[data-search-role]");
+  if (!button) return;
+  setSearchRole(button.getAttribute("data-search-role") || "all");
+});
+assistantTools?.addEventListener("click", handleChatOptionsClick);
 messageContextMenu?.addEventListener("click", handleMessageContextMenuClick);
 document.addEventListener("click", handleDocumentClick);
 
@@ -1072,7 +1266,8 @@ async function loadConversationsFromBackend() {
             messages: (Array.isArray(conv.messages) ? conv.messages : []).map(msg => ({
               id: normalizeMessageId(msg.id),
               role: msg.role === "user" ? "user" : "bot",
-              text: msg.text || msg.content || ""
+              text: msg.text || msg.content || "",
+              meta: msg.meta || {}
             })),
                 pinned: false,
                 archived: false
@@ -1090,21 +1285,11 @@ async function loadConversationsFromBackend() {
 
 // ================= WELCOME PROMPTS =================
 const welcomePrompts = [
-    "Welcome! 🌍 Which country currently holds the presidency of the G20?",
-    "Hello! 🌎 Which country has the largest population today?",
-    "Good day! 📚 How many continents are there on Earth?",
-    "Hi there! 🌐 What major global event happened this week?",
-    "Welcome! 🚀 Do you follow space or science updates regularly?",
-    "🌍 India is now one of the fastest-growing major economies in the world, with rapid expansion in digital infrastructure.",    
-    "🚀 The global tech industry is expected to cross $5 trillion in market value — skills in AI, cloud, and data are in high demand.",    
-    "📚 Studies show that continuous upskilling improves career growth opportunities by over 30% in competitive industries.",    
-    "🌐 More than 60% of global businesses are undergoing digital transformation today.",    
-    "🛰️ Space technology is no longer limited to governments — private companies are leading new innovation.",
-    "💼 Employers today value problem-solving and adaptability more than memorization-based learning.",
-    "📊 Data-driven decision making is becoming standard practice across industries worldwide.",    
-    "🌎 Renewable energy and sustainability sectors are creating millions of new jobs globally.",    
-    "🧠 Lifelong learning is considered one of the strongest predictors of long-term career success.",    
-    "🔐 Cybersecurity spending worldwide continues to increase due to growing digital threats."
+  "Welcome to REC Bijnor Academic AI. Ask me about departments, fees, placements, scholarships, or clubs.",
+  "Need placement insights? Ask for year-wise company and package details.",
+  "You can ask branch-wise fee details, scholarship options, and admission guidance.",
+  "Try: 'Show CSE placement details with year and package'.",
+  "I can also help with HOD information, exam queries, and timetable-related guidance."
 ];
 
 // ================= APP STATE =================
@@ -1116,7 +1301,12 @@ const state = {
   selectedMessageIds: new Set(),
   activeRenderedConversationId: null,
   selectMode: false,
-  contextMessageId: null
+  contextMessageId: null,
+  isAwaitingReply: false,
+  searchRole: "all",
+  currentAbortController: null,
+  streamTimerId: null,
+  streamCancelled: false
 };
 
 function normalizeConversationId(id) {
@@ -1152,7 +1342,8 @@ state.conversations = state.conversations.map(conv => ({
   messages: (conv.messages || []).map((msg, idx) => ({
     id: getMessageId(msg, idx),
     role: msg.role === "user" ? "user" : "bot",
-    text: msg.text || msg.content || ""
+    text: msg.text || msg.content || "",
+    meta: msg.meta || {}
   }))
 }));
 state.currentConversationId = normalizeConversationId(state.currentConversationId);
@@ -1165,7 +1356,8 @@ function updateState(newState = {}) {
     messages: (conv.messages || []).map((msg, idx) => ({
       id: getMessageId(msg, idx),
       role: msg.role === "user" ? "user" : "bot",
-      text: msg.text || msg.content || ""
+      text: msg.text || msg.content || "",
+      meta: msg.meta || {}
     }))
   }));
   state.currentConversationId = normalizeConversationId(state.currentConversationId);
@@ -1181,6 +1373,279 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function formatInline(text) {
+  return String(text || "")
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/__(.*?)__/g, "<em>$1</em>");
+}
+
+function sourceLabel(sourceValue) {
+  const source = String(sourceValue || "").toLowerCase();
+  if (!source) return "Academic AI";
+  const labels = {
+    groq: "AI Model",
+    structured: "Verified Data",
+    semantic: "Semantic Match",
+    faq: "FAQ",
+    "scope-guard": "Scope Guard",
+    fallback: "Fallback"
+  };
+  return labels[source] || "Academic AI";
+}
+
+function renderBotContentHtml(text) {
+  const safeText = escapeHtml(text);
+  const lines = safeText.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  if (!lines.length) {
+    return `<div class="bot-content"><p>I am here to help with REC Bijnor academic queries.</p></div>`;
+  }
+
+  let html = '<div class="bot-content">';
+  let listOpen = false;
+  lines.forEach(line => {
+    const bulletMatch = line.match(/^[-*]\s+(.*)$/);
+    if (bulletMatch) {
+      if (!listOpen) {
+        html += '<ul class="bot-list">';
+        listOpen = true;
+      }
+      html += `<li>${formatInline(bulletMatch[1])}</li>`;
+      return;
+    }
+
+    if (listOpen) {
+      html += '</ul>';
+      listOpen = false;
+    }
+    html += `<p>${formatInline(line)}</p>`;
+  });
+
+  if (listOpen) {
+    html += '</ul>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderSuggestionChips(meta = {}) {
+  const suggestions = Array.isArray(meta?.suggestions)
+    ? meta.suggestions.filter(Boolean).slice(0, 3)
+    : [];
+
+  if (!suggestions.length) {
+    return "";
+  }
+
+  const chips = suggestions
+    .map(item => `<button type="button" class="suggestion-chip-btn" data-suggestion="${escapeHtml(item)}">${escapeHtml(item)}</button>`)
+    .join("");
+
+  return `<div class="bot-suggestions">${chips}</div>`;
+}
+
+function renderBotMessageHtml(message) {
+  const meta = message?.meta || {};
+  const head = `
+    <div class="bot-head">
+      <span>Academic AI</span>
+      <span class="bot-source-badge">${escapeHtml(sourceLabel(meta.source))}</span>
+    </div>
+  `;
+  const body = renderBotContentHtml(message?.text || message?.content || "");
+  const suggestions = renderSuggestionChips(meta);
+  return `${head}${body}${suggestions}`;
+}
+
+function stopStreamingReply() {
+  state.streamCancelled = true;
+}
+
+const STREAM_STYLE = "cinematic";
+const STREAM_STYLES = {
+  fast: {
+    lookahead: 18,
+    minChunk: 4,
+    maxChunk: 9,
+    firstDelayMin: 18,
+    firstDelayJitter: 16,
+    baseDelayMin: 14,
+    baseDelayJitter: 14,
+    softPauseMin: 30,
+    softPauseJitter: 20,
+    hardPauseMin: 70,
+    hardPauseJitter: 35,
+    newlineExtraPause: 40,
+  },
+  cinematic: {
+    lookahead: 26,
+    minChunk: 2,
+    maxChunk: 7,
+    firstDelayMin: 70,
+    firstDelayJitter: 45,
+    baseDelayMin: 26,
+    baseDelayJitter: 24,
+    softPauseMin: 75,
+    softPauseJitter: 40,
+    hardPauseMin: 150,
+    hardPauseJitter: 80,
+    newlineExtraPause: 90,
+  }
+};
+
+function getStreamStyleConfig() {
+  return STREAM_STYLES[STREAM_STYLE] || STREAM_STYLES.fast;
+}
+
+function computeNextStreamIndex(text, currentIndex, config) {
+  if (currentIndex >= text.length) return text.length;
+
+  const remaining = text.length - currentIndex;
+  const lookahead = Math.min(config.lookahead, remaining);
+  const slice = text.slice(currentIndex, currentIndex + lookahead);
+
+  const hardPauseMatch = slice.match(/[.!?\n]/);
+  if (hardPauseMatch && hardPauseMatch.index !== undefined && hardPauseMatch.index >= 2) {
+    return currentIndex + hardPauseMatch.index + 1;
+  }
+
+  const softPauseMatch = slice.match(/[,;:]/);
+  if (softPauseMatch && softPauseMatch.index !== undefined && softPauseMatch.index >= 3) {
+    return currentIndex + softPauseMatch.index + 1;
+  }
+
+  const whitespaceMatch = slice.slice(2).match(/\s/);
+  if (whitespaceMatch && whitespaceMatch.index !== undefined) {
+    return currentIndex + 2 + whitespaceMatch.index + 1;
+  }
+
+  const chunkRange = Math.max(1, config.maxChunk - config.minChunk + 1);
+  const chunk = Math.min(remaining, config.minChunk + Math.floor(Math.random() * chunkRange));
+  return currentIndex + chunk;
+}
+
+function computeStreamDelay(chunkText, config) {
+  const value = String(chunkText || "");
+  if (!value) {
+    return config.baseDelayMin;
+  }
+
+  const lastChar = value[value.length - 1];
+  if (/[.!?\n]/.test(lastChar)) {
+    const extra = lastChar === "\n" ? config.newlineExtraPause : 0;
+    return config.hardPauseMin + Math.floor(Math.random() * config.hardPauseJitter) + extra;
+  }
+  if (/[,;:]/.test(lastChar)) {
+    return config.softPauseMin + Math.floor(Math.random() * config.softPauseJitter);
+  }
+  return config.baseDelayMin + Math.floor(Math.random() * config.baseDelayJitter);
+}
+
+function streamAssistantReply(fullText, meta = {}, botMessageId = null) {
+  const text = String(fullText || "");
+  if (!text) {
+    saveMessage("bot", "", botMessageId, meta);
+    loadConversation(state.currentConversationId);
+    return Promise.resolve();
+  }
+
+  return new Promise(resolve => {
+    const streamConfig = getStreamStyleConfig();
+
+    const row = document.createElement("div");
+    row.className = "message-row bot-row streaming-row";
+    row.id = "streaming-row";
+
+    const bubble = document.createElement("div");
+    bubble.className = "message bot rich-reply";
+    bubble.innerHTML = `
+      <div class="bot-head">
+        <span>Academic AI</span>
+        <span class="bot-source-badge">${escapeHtml(sourceLabel(meta?.source))}</span>
+      </div>
+      <div class="streaming-content" id="streaming-content"></div>
+    `;
+
+    row.appendChild(bubble);
+    chatBox.appendChild(row);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    const contentNode = document.getElementById("streaming-content");
+    let revealed = 0;
+    state.streamCancelled = false;
+
+    const streamStep = () => {
+      if (state.streamCancelled) {
+        clearTimeout(state.streamTimerId);
+        state.streamTimerId = null;
+        document.getElementById("streaming-row")?.remove();
+
+        const partial = text.slice(0, revealed).trim();
+        if (partial) {
+          saveMessage("bot", `${partial}\n\n(Generation stopped)`, createLocalMessageId(), {
+            ...meta,
+            source: meta?.source || "fallback"
+          });
+        }
+        loadConversation(state.currentConversationId);
+        resolve();
+        return;
+      }
+
+      const nextIndex = computeNextStreamIndex(text, revealed, streamConfig);
+      revealed = Math.min(text.length, nextIndex);
+      if (contentNode) {
+        contentNode.textContent = text.slice(0, revealed);
+      }
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      if (revealed >= text.length) {
+        clearTimeout(state.streamTimerId);
+        state.streamTimerId = null;
+        document.getElementById("streaming-row")?.remove();
+        saveMessage("bot", text, botMessageId, meta);
+        loadConversation(state.currentConversationId);
+        resolve();
+        return;
+      }
+
+      const currentChunk = text.slice(Math.max(0, revealed - 24), revealed);
+      const delay = computeStreamDelay(currentChunk, streamConfig);
+      state.streamTimerId = setTimeout(streamStep, delay);
+    };
+
+    const firstDelay = streamConfig.firstDelayMin + Math.floor(Math.random() * streamConfig.firstDelayJitter);
+    state.streamTimerId = setTimeout(streamStep, firstDelay);
+  });
+}
+
+function startAssistantWaitState() {
+  state.isAwaitingReply = true;
+
+  sendBtn.disabled = true;
+  input.disabled = true;
+  input.placeholder = "";
+  if (stopBtn) stopBtn.style.display = "inline-flex";
+}
+
+function stopAssistantWaitState() {
+  state.isAwaitingReply = false;
+  sendBtn.disabled = false;
+  input.disabled = false;
+  input.placeholder = "Type your message...";
+  if (stopBtn) stopBtn.style.display = "none";
+}
+
+function cancelAssistantReply() {
+  if (!state.isAwaitingReply) return;
+  if (state.currentAbortController) {
+    state.currentAbortController.abort();
+    return;
+  }
+  if (state.streamTimerId) {
+    stopStreamingReply();
+  }
 }
 
 function getProfileLabel(profile) {
@@ -1207,7 +1672,6 @@ function renderProfileSection(profile) {
     : `<span>${initials}</span>`;
 
   if (profileAvatarSlot) profileAvatarSlot.innerHTML = avatarMarkup;
-  if (sidebarProfileIcon) sidebarProfileIcon.innerHTML = photoData ? `<img src="${photoData}" alt="Profile photo">` : initials;
   if (profileCardName) profileCardName.textContent = info.name;
   if (profileCardSubtitle) profileCardSubtitle.textContent = info.subtitle;
 }
@@ -1414,31 +1878,48 @@ function getCurrentSearchQuery() {
   return String(chatSearchInput?.value || "").trim().toLowerCase();
 }
 
+function updateSearchSummary(visibleCount, totalCount, query, roleFilter) {
+  if (!searchResultCount) return;
+
+  if (!query && roleFilter === "all") {
+    searchResultCount.textContent = `Showing all ${totalCount} messages`;
+    return;
+  }
+
+  const scopeLabel = roleFilter === "all" ? "messages" : `${roleFilter} messages`;
+  if (!visibleCount) {
+    searchResultCount.textContent = `No ${scopeLabel} found`;
+    return;
+  }
+
+  searchResultCount.textContent = `${visibleCount} ${scopeLabel} shown`;
+}
+
+function setSearchRole(role) {
+  const allowed = new Set(["all", "user", "bot"]);
+  state.searchRole = allowed.has(role) ? role : "all";
+
+  document.querySelectorAll("[data-search-role]").forEach(button => {
+    button.classList.toggle("active", button.getAttribute("data-search-role") === state.searchRole);
+  });
+
+  loadConversation(state.currentConversationId, { preserveSelection: true });
+}
+
 function updateSelectionBadge() {
   const count = state.selectedMessageIds.size;
   if (!selectedCountChip) return;
   if (count > 0) {
     selectedCountChip.style.display = "inline-flex";
-    selectedCountChip.textContent = String(count);
+    selectedCountChip.textContent = `${count} selected`;
   } else {
     selectedCountChip.style.display = "none";
-    selectedCountChip.textContent = "0";
+    selectedCountChip.textContent = "0 selected";
   }
 
-  const toggleLabel = chatOptionsDropdown?.querySelector('[data-chat-action="toggle-select-mode"]');
-  if (toggleLabel) {
-    toggleLabel.textContent = state.selectMode ? "Disable Selection" : "Enable Selection";
+  if (toggleSelectBtn) {
+    toggleSelectBtn.textContent = state.selectMode ? "Disable Selection" : "Enable Selection";
   }
-}
-
-function toggleChatOptionsMenu(event) {
-  event?.stopPropagation();
-  chatOptionsDropdown?.classList.toggle("open");
-  updateSelectionBadge();
-}
-
-function closeChatOptionsMenu() {
-  chatOptionsDropdown?.classList.remove("open");
 }
 
 function openMessageContextMenu(event, messageId) {
@@ -1469,9 +1950,6 @@ function closeMessageContextMenu() {
 }
 
 function handleDocumentClick(event) {
-  if (chatMenuWrap && !chatMenuWrap.contains(event.target)) {
-    closeChatOptionsMenu();
-  }
   if (messageContextMenu && !messageContextMenu.contains(event.target)) {
     closeMessageContextMenu();
   }
@@ -1534,8 +2012,6 @@ function handleChatOptionsClick(event) {
     default:
       break;
   }
-
-  closeChatOptionsMenu();
 }
 
 function setSelectMode(enabled) {
@@ -1937,18 +2413,29 @@ function loadConversation(id, options = {}) {
 
     chatBox.innerHTML = "";
     chatBox.classList.toggle("select-mode", state.selectMode);
+    const searchQuery = getCurrentSearchQuery();
+    const roleFilter = state.searchRole || "all";
 
     if (!Array.isArray(conv.messages) || conv.messages.length === 0) {
+        updateSearchSummary(0, 0, searchQuery, roleFilter);
         showWelcomePrompt();
         return;
     }
+
+    let renderedCount = 0;
 
     conv.messages.forEach((msg, idx) => {
       const role = msg.role === "user" ? "user" : "bot";
       const safeText = msg.text || msg.content || "";
       const messageId = getMessageId(msg, idx);
-      const searchQuery = getCurrentSearchQuery();
-      const isSearchHit = searchQuery && safeText.toLowerCase().includes(searchQuery);
+      const roleMatch = roleFilter === "all" || role === roleFilter;
+      const textMatch = !searchQuery || safeText.toLowerCase().includes(searchQuery);
+      if (!roleMatch || !textMatch) {
+        return;
+      }
+
+      renderedCount += 1;
+      const isSearchHit = Boolean(searchQuery);
       msg.id = messageId;
 
       const row = document.createElement("div");
@@ -1969,10 +2456,8 @@ function loadConversation(id, options = {}) {
       });
 
       if (role === "bot") {
-        bubble.innerHTML = safeText
-          .replace(/\n/g, '<br>')
-          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-          .replace(/__(.*?)__/g, '<em>$1</em>');
+        bubble.classList.add("rich-reply");
+        bubble.innerHTML = renderBotMessageHtml(msg);
       } else {
         bubble.textContent = safeText;
       }
@@ -2002,11 +2487,23 @@ function loadConversation(id, options = {}) {
       chatBox.appendChild(row);
     });
 
+    updateSearchSummary(renderedCount, conv.messages.length, searchQuery, roleFilter);
+
+    if (renderedCount === 0) {
+      const empty = document.createElement("div");
+      empty.className = "hero-welcome";
+      empty.style.fontSize = "19px";
+      empty.style.maxWidth = "640px";
+      empty.innerText = "No messages matched this academic filter. Try changing role or clearing search.";
+      chatBox.appendChild(empty);
+      return;
+    }
+
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 // ================= SAVE MESSAGE =================
-function saveMessage(role, text, messageId = null) {
+function saveMessage(role, text, messageId = null, meta = {}) {
 
   const conv = findConversation(state.currentConversationId);
 
@@ -2015,7 +2512,8 @@ function saveMessage(role, text, messageId = null) {
     conv.messages.push({
       id: normalizeMessageId(messageId) || createLocalMessageId(),
       role,
-      text
+      text,
+      meta: meta || {}
     });
 
     if (conv.title === "New Chat") {
@@ -2026,10 +2524,12 @@ function saveMessage(role, text, messageId = null) {
 }
 
 // ================= SEND MESSAGE =================
-async function sendMessage() {
+async function sendMessage(prefilledMessage = "") {
 
-    const msg = input.value.trim();
+  const rawMessage = prefilledMessage || input.value;
+  const msg = rawMessage.trim();
     if (!msg) return;
+  if (state.isAwaitingReply) return;
 
     if (chatBox.querySelector(".hero-welcome")) {
         chatBox.innerHTML = "";
@@ -2054,6 +2554,9 @@ async function sendMessage() {
         return;
     }
 
+    startAssistantWaitState();
+    state.currentAbortController = new AbortController();
+
     try {
       const activeConversationId = normalizeConversationId(state.currentConversationId);
       const conversationIdForApi = activeConversationId && !isTemporaryConversationId(activeConversationId)
@@ -2069,12 +2572,27 @@ async function sendMessage() {
         body: JSON.stringify({
           message: msg,
           conversation_id: conversationIdForApi
-        })
+        }),
+        signal: state.currentAbortController.signal
         });
 
-        if (!response.ok) return;
+        if (!response.ok) {
+          let errorMsg = "I could not process that right now. Please try again.";
+          try {
+            const errData = await response.json();
+            if (errData?.detail) {
+              errorMsg = String(errData.detail);
+            }
+          } catch {
+            // Keep default fallback error text.
+          }
+          saveMessage("bot", errorMsg, createLocalMessageId(), { source: "fallback" });
+          loadConversation(state.currentConversationId);
+          return;
+        }
 
         const data = await response.json();
+        state.currentAbortController = null;
 
       if (data.conversation_id) {
         const serverConversationId = normalizeConversationId(data.conversation_id);
@@ -2100,13 +2618,36 @@ async function sendMessage() {
           }
         }
 
-        saveMessage("bot", data.reply, data.bot_message_id);
-        loadConversation(state.currentConversationId);
+        await streamAssistantReply(data.reply, {
+          category: data.category || "General",
+          suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+          source: data.source || "groq"
+        }, data.bot_message_id);
 
         chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: "smooth" });
 
     } catch (error) {
+        if (error?.name === "AbortError") {
+          saveMessage(
+            "bot",
+            "Stopped the current response. You can ask a new question anytime.",
+            createLocalMessageId(),
+            { source: "fallback" }
+          );
+          loadConversation(state.currentConversationId);
+          return;
+        }
         console.error("Fetch error:", error);
+        saveMessage(
+          "bot",
+          "Network issue occurred while contacting Academic AI. Please retry in a moment.",
+          createLocalMessageId(),
+          { source: "fallback" }
+        );
+        loadConversation(state.currentConversationId);
+    } finally {
+      state.currentAbortController = null;
+      stopAssistantWaitState();
     }
 }
 
@@ -2205,6 +2746,15 @@ conversationList.addEventListener("click", function (e) {
 
 // ================= EVENTS =================
 sendBtn.addEventListener("click", sendMessage);
+stopBtn?.addEventListener("click", cancelAssistantReply);
+
+chatBox.addEventListener("click", event => {
+  const button = event.target.closest(".suggestion-chip-btn");
+  if (!button) return;
+  const suggestion = button.getAttribute("data-suggestion") || "";
+  if (!suggestion.trim()) return;
+  sendMessage(suggestion);
+});
 
 input.addEventListener("keydown", e => {
     if (e.key === "Enter") sendMessage();

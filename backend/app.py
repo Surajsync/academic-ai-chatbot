@@ -641,7 +641,26 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
         for msg in reversed(recent_messages)
     ]
 
-    reply, reply_source = generate_reply_with_source(db, request.message, conversation_history=conversation_history)
+    profile_context_parts = []
+    profile = getattr(user, "profile", None)
+    if profile:
+        if profile.display_name:
+            profile_context_parts.append(f"name: {profile.display_name}")
+        if profile.department:
+            profile_context_parts.append(f"department: {profile.department}")
+        if profile.semester:
+            profile_context_parts.append(f"semester: {profile.semester}")
+        if profile.year:
+            profile_context_parts.append(f"year: {profile.year}")
+
+    user_context = "; ".join(profile_context_parts)
+
+    reply, reply_source = generate_reply_with_source(
+        db,
+        request.message,
+        conversation_history=conversation_history,
+        user_context=user_context,
+    )
     
     # Categorize the response
     category = categorize_response(request.message)
@@ -673,7 +692,8 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
     response = {
         "reply": reply,
         "category": category,
-        "suggestions": suggestions[:3]
+        "suggestions": suggestions[:3],
+        "source": reply_source,
     }
     
     if _normalize_role_value(user.role) == "admin":

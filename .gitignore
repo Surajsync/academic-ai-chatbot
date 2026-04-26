@@ -17,3 +17,6 @@ projectenv/
 .DS_Store
 Thumbs.db
 docs/
+
+# LibreOffice temporary lock files
+.~lock.*

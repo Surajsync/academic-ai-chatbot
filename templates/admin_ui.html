@@ -47,6 +47,8 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--cream);displ
 .topbar-title{font-size:16px;font-weight:600}
 .breadcrumb{font-size:11px;color:var(--muted)}
 .topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-btn{padding:7px 11px;border-radius:8px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--cream2);font-family:'Sora';font-size:11px;cursor:pointer;transition:all 0.18s}
+.topbar-btn:hover{border-color:var(--border);background:var(--saf-dim);color:var(--cream)}
 .sys-status{display:flex;align-items:center;gap:6px;background:rgba(16,217,160,0.08);border:1px solid rgba(16,217,160,0.2);padding:5px 12px;border-radius:20px;font-size:11px;color:var(--green)}
 .sys-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
@@ -240,6 +242,7 @@ tr:hover td{background:rgba(255,255,255,0.015)}
       <span class="breadcrumb" id="breadcrumb">Home / Dashboard</span>
     </div>
     <div class="topbar-right">
+      <button class="topbar-btn" id="refresh-page-btn" type="button">Refresh</button>
       <div class="time-display" id="clock">--:--</div>
       <div class="sys-status">Systems Operational</div>
     </div>
@@ -302,7 +305,44 @@ let allFaqs=[], allUsers=[], allFailedQueries=[], currentPage=1, faqsPerPage=15;
 let faqSearchQuery="", faqStatusFilter="all";
 let userSearchQuery="", userRoleFilter="all";
 let failedSearchQuery="", failedPriorityFilter="all";
+let activeSection = "dashboard";
+let mutationInProgress = false;
 function H(){return{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"}}
+
+function setModalButtonsBusy(isBusy, busyText="Processing..."){
+  const buttons = document.querySelectorAll("#modal-overlay .modal-footer .btn");
+  buttons.forEach(button => {
+    if (isBusy) {
+      if (!button.dataset.originalText) {
+        button.dataset.originalText = button.textContent || "";
+      }
+      button.disabled = true;
+      if (!button.classList.contains("btn-ghost")) {
+        button.textContent = busyText;
+      }
+    } else {
+      button.disabled = false;
+      if (button.dataset.originalText) {
+        button.textContent = button.dataset.originalText;
+      }
+    }
+  });
+}
+
+function canRunMutation(){
+  if (mutationInProgress) {
+    toast("Please wait for the current action to finish","info");
+    return false;
+  }
+  mutationInProgress = true;
+  setModalButtonsBusy(true);
+  return true;
+}
+
+function finishMutation(){
+  mutationInProgress = false;
+  setModalButtonsBusy(false);
+}
 
 function escapeCsvCell(value){
   const text = String(value ?? "").replace(/"/g, '""');
@@ -323,6 +363,7 @@ function downloadCsv(filename, rows){
 }
 
 function goto(page){
+  activeSection = page;
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
   const btn=document.getElementById("nav-"+page);
   if(btn) btn.classList.add("active");
@@ -332,6 +373,13 @@ function goto(page){
   const fn={dashboard:loadDashboard,faqs:loadFAQs,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
   if(fn[page]) fn[page]();
 }
+
+function refreshCurrentSection(){
+  const fn={dashboard:loadDashboard,faqs:loadFAQs,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
+  if(fn[activeSection]) fn[activeSection]();
+}
+
+document.getElementById("refresh-page-btn")?.addEventListener("click", refreshCurrentSection);
 
 function toast(msg,type="success"){
   const icons={success:"✅",error:"❌",info:"ℹ️",warn:"⚠️"};
@@ -514,7 +562,10 @@ function renderFAQs(){
   document.getElementById("content").innerHTML=`
     <div class="section-hdr">
       <h2>🧠 Knowledge Base <span class="count">${total} total</span></h2>
-      <button class="btn btn-primary" onclick="openAddFAQ()">➕ Add FAQ</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-blue" onclick="exportFaqsCsv()">⬇️ Export CSV</button>
+        <button class="btn btn-primary" onclick="openAddFAQ()">➕ Add FAQ</button>
+      </div>
     </div>
     <div class="info-box"><span class="info-icon">💡</span><span>The chatbot matches student questions to <strong>keywords</strong> below and replies with the saved response. More keywords = better accuracy. Separate keywords with commas.</span></div>
     <div class="toolbar">
@@ -547,15 +598,38 @@ function openAddFAQ(){
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitAddFAQ()">➕ Add to Knowledge Base</button></div>`);
 }
 
+function exportFaqsCsv(){
+  const rows = getFilteredFaqs();
+  if (!rows.length) {
+    toast("No FAQs to export","info");
+    return;
+  }
+
+  const csvRows = [
+    ["id", "keyword", "response", "is_active"],
+    ...rows.map(item => [
+      item.id,
+      item.keyword,
+      item.response,
+      item.is_active ? "active" : "inactive"
+    ])
+  ];
+
+  downloadCsv(`knowledge-base-${Date.now()}.csv`, csvRows);
+  toast("Knowledge base exported","success");
+}
+
 async function submitAddFAQ(){
+  if (!canRunMutation()) return;
   const kw=document.getElementById("m-kw")?.value.trim();
   const res=document.getElementById("m-res")?.value.trim();
-  if(!kw||!res){toast("Both keyword and response are required","error");return}
+  if(!kw||!res){toast("Both keyword and response are required","error");finishMutation();return}
   try{
     const r=await fetch(`${API}/admin/faqs`,{method:"POST",headers:H(),body:JSON.stringify({keyword:kw,response:res})});
     if(!r.ok) throw new Error((await r.json()).detail||"Failed");
     closeModal();toast("FAQ added to knowledge base ✓");loadFAQs();
   }catch(e){toast(e.message,"error")}
+  finally{finishMutation()}
 }
 
 function editFAQ(id,kw,res){
@@ -566,14 +640,16 @@ function editFAQ(id,kw,res){
 }
 
 async function submitEditFAQ(id){
+  if (!canRunMutation()) return;
   const kw=document.getElementById("m-kw")?.value.trim();
   const res=document.getElementById("m-res")?.value.trim();
-  if(!kw||!res){toast("Both fields required","error");return}
+  if(!kw||!res){toast("Both fields required","error");finishMutation();return}
   try{
     await fetch(`${API}/admin/faqs/${id}`,{method:"DELETE",headers:H()});
     await fetch(`${API}/admin/faqs`,{method:"POST",headers:H(),body:JSON.stringify({keyword:kw,response:res})});
     closeModal();toast("FAQ updated successfully ✓");loadFAQs();
   }catch(e){toast("Update failed","error")}
+  finally{finishMutation()}
 }
 
 function deleteFAQ(id){
@@ -583,8 +659,10 @@ function deleteFAQ(id){
 }
 
 async function confirmDeleteFAQ(id){
+  if (!canRunMutation()) return;
   try{await fetch(`${API}/admin/faqs/${id}`,{method:"DELETE",headers:H()});closeModal();toast("FAQ deleted");loadFAQs();}
   catch(e){toast("Delete failed","error")}
+  finally{finishMutation()}
 }
 
 // ── FAILED QUERIES ──
@@ -706,6 +784,7 @@ function deleteFailedQuery(queryId, queryText){
 }
 
 async function confirmDeleteFailedQuery(queryId){
+  if (!canRunMutation()) return;
   try{
     const res=await fetch(`${API}/admin/failed/${queryId}`,{method:"DELETE",headers:H()});
     if(!res.ok) throw new Error("Failed to delete");
@@ -713,6 +792,7 @@ async function confirmDeleteFailedQuery(queryId){
     toast("Failed query deleted ✓","success");
     loadFailed();
   }catch(e){toast("Delete failed: "+e.message,"error")}
+  finally{finishMutation()}
 }
 
 async function loadUsers(){
@@ -860,6 +940,7 @@ function toggleRole(id,currentRole,name){
 }
 
 async function confirmToggleRole(id,newRole){
+  if (!canRunMutation()) return;
   try{
     const r=await fetch(`${API}/admin/users/${id}/role`,{method:"PATCH",headers:H(),body:JSON.stringify({role:newRole})});
     closeModal();
@@ -867,6 +948,7 @@ async function confirmToggleRole(id,newRole){
     const data=await r.json().catch(()=>({}));
     toast(data.detail||"Failed to update role","error");
   }catch(e){toast("Error","error")}
+  finally{finishMutation()}
 }
 
 function toggleBlock(id,isCurrentlyActive,name){
@@ -886,6 +968,7 @@ function toggleBlock(id,isCurrentlyActive,name){
 }
 
 async function confirmToggleBlock(id,isActive){
+  if (!canRunMutation()) return;
   try{
     const r=await fetch(`${API}/admin/users/${id}/status`,{method:"PATCH",headers:H(),body:JSON.stringify({is_active:isActive})});
     closeModal();
@@ -897,6 +980,7 @@ async function confirmToggleBlock(id,isActive){
     const data=await r.json().catch(()=>({}));
     toast(data.detail||"Failed to update status","error");
   }catch(e){toast("Error updating user status","error")}
+  finally{finishMutation()}
 }
 
 // ── AUDIT LOGS ──

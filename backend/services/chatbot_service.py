@@ -94,6 +94,11 @@ STOPWORDS = {
     "should", "would", "branch", "department", "details", "info", "information", "college",
 }
 
+FOLLOW_UP_TOKENS = {
+    "date", "dates", "year", "years", "detail", "details", "more", "also",
+    "that", "those", "their", "them", "it", "and", "same", "exact",
+}
+
 FEE_QUERY_HINTS = {"fee", "fees", "tuition", "hostel"}
 HOD_QUERY_HINTS = {"hod", "head", "faculty"}
 CLUB_QUERY_HINTS = {"club", "clubs", "society", "activities", "extracurricular"}
@@ -239,7 +244,7 @@ def get_intent_guided_suggestions(message: str) -> list[str]:
     suggestions = {
         "fee": ["Ask fee breakup by year", "Ask hostel fee details", "Ask payment schedule"],
         "hod": ["Ask department faculty list", "Ask department contact details", "Ask office timings"],
-        "placement": ["Ask top recruiters", "Ask average package by branch", "Ask T&P cell contact"],
+        "placement": ["Ask top recruiters", "Ask average package by branch", "Ask placement details with year"],
         "scholarship": ["Ask scholarship eligibility", "Ask required documents", "Ask scholarship deadlines"],
         "admission": ["Ask admission eligibility", "Ask required documents", "Ask admission deadlines"],
         "exam": ["Ask exam schedule", "Ask result portal details", "Ask backlog exam process"],
@@ -254,10 +259,29 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ", text.lower())).strip()
 
 
+def _normalize_token_variant(token: str) -> str:
+    if len(token) <= 3:
+        return token
+
+    if token.endswith("ies") and len(token) > 4:
+        return token[:-3] + "y"
+    if token.endswith("es") and len(token) > 4:
+        return token[:-2]
+    if token.endswith("s") and len(token) > 3:
+        return token[:-1]
+
+    return token
+
+
 def _tokenize(text: str) -> set[str]:
     normalized = _normalize(text)
-    tokens = {t for t in normalized.split() if len(t) > 1}
-    return {t for t in tokens if t not in STOPWORDS}
+    base_tokens = {t for t in normalized.split() if len(t) > 1 and t not in STOPWORDS}
+    expanded_tokens = set(base_tokens)
+    for token in base_tokens:
+        token_variant = _normalize_token_variant(token)
+        if len(token_variant) > 1:
+            expanded_tokens.add(token_variant)
+    return expanded_tokens
 
 
 def _expand_aliases(text: str) -> str:
@@ -306,6 +330,43 @@ def _small_talk_reply(normalized_message: str, query_tokens: set[str]) -> tuple[
         return ("Happy to help. Ask your next question any time.", "smalltalk")
 
     return None
+
+
+def _looks_like_follow_up(query_tokens: set[str]) -> bool:
+    if not query_tokens:
+        return False
+    if len(query_tokens) > 6:
+        return False
+    return bool(query_tokens.intersection(FOLLOW_UP_TOKENS))
+
+
+def _resolve_follow_up_query(
+    original_message: str,
+    expanded_query: str,
+    query_tokens: set[str],
+    conversation_history: list[dict] | None,
+) -> tuple[str, set[str]]:
+    if _detect_intent(query_tokens) != "general":
+        return expanded_query, query_tokens
+    if not _looks_like_follow_up(query_tokens):
+        return expanded_query, query_tokens
+    if not conversation_history:
+        return expanded_query, query_tokens
+
+    previous_user_messages = [
+        _clean_spaces(item.get("content") or "")
+        for item in conversation_history
+        if (item.get("role") or "").strip().lower() == "user"
+    ]
+    if not previous_user_messages:
+        return expanded_query, query_tokens
+
+    last_user_query = previous_user_messages[-1]
+    if not last_user_query:
+        return expanded_query, query_tokens
+
+    merged = f"{_expand_aliases(last_user_query)} {_expand_aliases(original_message)}"
+    return merged, _tokenize(merged)
 
 
 def _collect_relevant_faqs(
@@ -408,6 +469,40 @@ def _direct_structured_answer(db: Session, query_tokens: set[str]) -> tuple[str,
         if fee:
             return f"Fee Structure for {fee.branch}: {fee.amount}", "structured"
 
+    if query_tokens.intersection(PLACEMENT_QUERY_HINTS):
+        placements = db.query(Placement).all()
+        if placements:
+            top_placements = _top_scored_records(
+                placements,
+                query_tokens,
+                lambda placement: f"{placement.student_name} {placement.branch} {placement.company_name} {placement.placement_year}",
+                limit=6,
+                min_score=0,
+            )
+
+            if not top_placements:
+                top_placements = sorted(
+                    placements,
+                    key=lambda row: str(row.placement_year or ""),
+                    reverse=True,
+                )[:6]
+
+            branches = sorted({row.branch for row in placements if row.branch})
+            companies = sorted({row.company_name for row in placements if row.company_name})
+
+            lines = ["Placement snapshot (latest records):"]
+            for row in top_placements:
+                year = row.placement_year or "N/A"
+                package = f"{row.package_lpa} LPA" if row.package_lpa else "Package data unavailable"
+                lines.append(f"- {row.student_name} ({row.branch}) -> {row.company_name}, {package}, Year: {year}")
+
+            if branches:
+                lines.append(f"Branches covered: {', '.join(branches[:8])}")
+            if companies:
+                lines.append(f"Recruiters in database: {', '.join(companies[:10])}")
+
+            return "\n".join(lines), "structured"
+
     return None
 
 
@@ -498,7 +593,9 @@ def build_context(db: Session, message: str) -> str:
             branches.add(placement.branch)
 
         for placement in top_placements:
-            placement_lines.append(f"  • {placement.student_name} ({placement.branch}): {placement.company_name}, ₹{placement.package_lpa} LPA")
+            placement_lines.append(
+                f"  • {placement.student_name} ({placement.branch}): {placement.company_name}, ₹{placement.package_lpa} LPA, Year: {placement.placement_year}"
+            )
         
         if placement_lines:
             lines.append("🎓 PLACEMENT RECORDS:")
@@ -516,7 +613,9 @@ def build_context(db: Session, message: str) -> str:
         if top_placements:
             lines.append("🎯 TOP PLACEMENTS:")
             for placement in top_placements:
-                lines.append(f"  • {placement.student_name} ({placement.branch}): {placement.company_name}, ₹{placement.package_lpa} LPA")
+                lines.append(
+                    f"  • {placement.student_name} ({placement.branch}): {placement.company_name}, ₹{placement.package_lpa} LPA, Year: {placement.placement_year}"
+                )
 
     scholarships = db.query(ScholarshipCell).all()
     top_scholarships = _top_scored_records(
@@ -539,12 +638,24 @@ def build_context(db: Session, message: str) -> str:
     return "\n".join(lines)
 
 
-def _generate_reply_with_source(db: Session, message: str, conversation_history: list[dict] | None = None):
+def _generate_reply_with_source(
+    db: Session,
+    message: str,
+    conversation_history: list[dict] | None = None,
+    user_context: str = "",
+):
     original_message = message.strip()
     normalized_message = original_message.lower()
 
     expanded_query = _expand_aliases(normalized_message)
     query_tokens = _tokenize(expanded_query)
+
+    expanded_query, query_tokens = _resolve_follow_up_query(
+        original_message,
+        expanded_query,
+        query_tokens,
+        conversation_history,
+    )
 
     if _is_probably_out_of_scope(normalized_message, query_tokens):
         reply = (
@@ -574,6 +685,9 @@ def _generate_reply_with_source(db: Session, message: str, conversation_history:
 
     contact_hint = _intent_contact_hint(intent)
     recent_history = _build_recent_history_context(conversation_history)
+    if user_context:
+        profile_line = _clean_spaces(user_context)
+        recent_history = f"USER_PROFILE: {profile_line}\n{recent_history}".strip()
 
     if _is_llm_enabled():
         try:
@@ -605,8 +719,18 @@ def generate_reply(db: Session, message: str):
     return reply
 
 
-def generate_reply_with_source(db: Session, message: str, conversation_history: list[dict] | None = None):
-    return _generate_reply_with_source(db, message, conversation_history=conversation_history)
+def generate_reply_with_source(
+    db: Session,
+    message: str,
+    conversation_history: list[dict] | None = None,
+    user_context: str = "",
+):
+    return _generate_reply_with_source(
+        db,
+        message,
+        conversation_history=conversation_history,
+        user_context=user_context,
+    )
 
 
 # Semantic search implementation using sentence embeddings for improved relevance ranking.
