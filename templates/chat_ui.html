@@ -238,6 +238,28 @@ html,body{
   margin-bottom:10px;
 }
 
+.language-group{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.language-btn{
+  border:1px solid var(--border-subtle);
+  background:rgba(255,255,255,0.04);
+  color:var(--cream);
+  border-radius:10px;
+  padding:7px 11px;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.language-btn.active{
+  background:rgba(232,130,12,0.2);
+  border-color:rgba(232,130,12,0.4);
+}
+
 
 .assistant-tools{
   margin:10px 0 14px;
@@ -757,6 +779,52 @@ html,body{
   margin-top:4px;
 }
 
+.announcement-banner{
+  margin:10px 0 12px;
+  border:1px solid rgba(232,130,12,0.3);
+  background:linear-gradient(135deg,rgba(232,130,12,0.16),rgba(26,34,53,0.5));
+  border-radius:14px;
+  padding:12px 14px;
+  display:none;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.announcement-banner.show{
+  display:flex;
+}
+
+.announcement-title{
+  font-size:13px;
+  color:var(--saffron-pale);
+  text-transform:uppercase;
+  letter-spacing:0.8px;
+  margin-bottom:4px;
+}
+
+.announcement-text{
+  font-size:13px;
+  color:var(--cream);
+  line-height:1.5;
+}
+
+.announcement-close{
+  border:none;
+  background:rgba(255,255,255,0.07);
+  color:var(--cream);
+  width:28px;
+  height:28px;
+  border-radius:999px;
+  cursor:pointer;
+  flex-shrink:0;
+}
+
+.announcement-close:hover{
+  background:rgba(244,63,94,0.2);
+  color:#ffd7dd;
+}
+
 /* Chat Area */
 .chat-box{
   flex:1;
@@ -920,6 +988,36 @@ html,body{
   display:flex;
   flex-wrap:wrap;
   gap:8px;
+}
+
+.bot-feedback{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.feedback-btn,
+.feedback-reason-btn{
+  border:1px solid var(--border-subtle);
+  background:rgba(255,255,255,0.04);
+  color:var(--cream);
+  border-radius:999px;
+  padding:5px 10px;
+  font-size:12px;
+  cursor:pointer;
+}
+
+.feedback-btn.active,
+.feedback-reason-btn.active{
+  border-color:rgba(232,130,12,0.4);
+  background:rgba(232,130,12,0.2);
+}
+
+.feedback-reasons{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
 }
 
 .suggestion-chip-btn{
@@ -1172,6 +1270,15 @@ html,body{
       <button id="chat-options-btn" class="header-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Chat options">⋮</button>
       <div id="chat-options-menu" class="header-menu-dropdown" role="menu" aria-label="Chat actions">
         <div class="header-menu-section">
+          <div class="header-menu-label">Language</div>
+          <div class="language-group" id="chat-language-controls">
+            <button class="language-btn active" type="button" data-chat-language="auto">Auto</button>
+            <button class="language-btn" type="button" data-chat-language="en">English</button>
+            <button class="language-btn" type="button" data-chat-language="hi">Hindi</button>
+          </div>
+        </div>
+
+        <div class="header-menu-section">
           <div class="header-menu-label">Chat Actions</div>
           <div class="tool-group" id="chat-action-tools">
             <button id="toggle-select-btn" class="tool-action-btn" type="button" data-chat-action="toggle-select-mode">Select Messages</button>
@@ -1184,6 +1291,14 @@ html,body{
         </div>
       </div>
     </div>
+  </div>
+
+  <div id="announcement-banner" class="announcement-banner">
+    <div>
+      <div class="announcement-title" id="announcement-title">Announcement</div>
+      <div class="announcement-text" id="announcement-text"></div>
+    </div>
+    <button id="announcement-close" class="announcement-close" type="button" aria-label="Close announcement">×</button>
   </div>
 
   <div class="chat-box" id="chat-box"></div>
@@ -1235,12 +1350,17 @@ const conversationList = document.getElementById("conversation-list");
 const editProfileBtn = document.getElementById("edit-profile-btn");
 const chatOptionsBtn = document.getElementById("chat-options-btn");
 const chatOptionsMenu = document.getElementById("chat-options-menu");
+const chatLanguageControls = document.getElementById("chat-language-controls");
 const selectedCountChip = document.getElementById("selected-count-chip");
 const toggleSelectBtn = document.getElementById("toggle-select-btn");
 const messageContextMenu = document.getElementById("message-context-menu");
 const profileAvatarSlot = document.getElementById("profile-avatar-slot");
 const profileCardName = document.getElementById("profile-card-name");
 const profileCardSubtitle = document.getElementById("profile-card-subtitle");
+const announcementBanner = document.getElementById("announcement-banner");
+const announcementTitleNode = document.getElementById("announcement-title");
+const announcementTextNode = document.getElementById("announcement-text");
+const announcementCloseBtn = document.getElementById("announcement-close");
 const API_BASE = window.location.origin;
 
 async function enforceChatAccess() {
@@ -1275,11 +1395,19 @@ async function enforceChatAccess() {
 
 enforceChatAccess();
 loadUserProfile();
+applyChatLanguage(getChatLanguage());
+loadActiveAnnouncement();
 
 editProfileBtn?.addEventListener("click", openProfileModal);
 chatOptionsBtn?.addEventListener("click", event => {
   event.stopPropagation();
   toggleChatOptionsMenu();
+});
+chatLanguageControls?.addEventListener("click", event => {
+  const button = event.target.closest("[data-chat-language]");
+  if (!button) return;
+  const language = button.getAttribute("data-chat-language") || "auto";
+  applyChatLanguage(language);
 });
 chatOptionsMenu?.addEventListener("click", handleChatOptionsClick);
 messageContextMenu?.addEventListener("click", handleMessageContextMenuClick);
@@ -1305,7 +1433,10 @@ async function loadConversationsFromBackend() {
               id: normalizeMessageId(msg.id),
               role: msg.role === "user" ? "user" : "bot",
               text: msg.text || msg.content || "",
-              meta: msg.meta || {}
+              meta: {
+                ...(msg.meta || {}),
+                feedback: parseFeedback(msg.feedback) || (msg.meta?.feedback || null)
+              }
             })),
                 pinned: false,
                 archived: false
@@ -1374,12 +1505,86 @@ function normalizeMessageId(id) {
   return String(id);
 }
 
+function parseFeedback(rawFeedback) {
+  if (!rawFeedback) return null;
+  const value = String(rawFeedback).trim();
+  if (!value) return null;
+  const parts = value.split("|", 2);
+  const sentiment = (parts[0] || "").trim().toLowerCase();
+  if (!["up", "down"].includes(sentiment)) return null;
+  return {
+    sentiment,
+    reason: (parts[1] || "").trim()
+  };
+}
+
 function createLocalMessageId() {
   return `local-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
 function getMessageId(msg, idx = 0) {
   return normalizeMessageId(msg?.id) || `legacy-${idx}-${Math.floor(Math.random() * 100000)}`;
+}
+
+function getChatLanguage() {
+  const language = String(localStorage.getItem("chatLanguage") || "auto").toLowerCase();
+  return ["auto", "en", "hi"].includes(language) ? language : "auto";
+}
+
+function applyChatLanguage(language) {
+  const nextLanguage = ["auto", "en", "hi"].includes(language) ? language : "auto";
+  localStorage.setItem("chatLanguage", nextLanguage);
+  document.querySelectorAll("[data-chat-language]").forEach(button => {
+    button.classList.toggle("active", button.getAttribute("data-chat-language") === nextLanguage);
+  });
+}
+
+function getDismissedAnnouncementId() {
+  return String(localStorage.getItem("dismissedAnnouncementId") || "");
+}
+
+function dismissAnnouncement(announcementId) {
+  localStorage.setItem("dismissedAnnouncementId", String(announcementId || ""));
+  announcementBanner?.classList.remove("show");
+}
+
+async function loadActiveAnnouncement() {
+  const token = localStorage.getItem("access_token");
+  if (!token || !announcementBanner) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/announcements/active`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!response.ok) return;
+
+    const data = await response.json();
+    const announcement = data?.announcement;
+    if (!announcement || !announcement.message) {
+      announcementBanner.classList.remove("show");
+      return;
+    }
+
+    const announcementId = String(announcement.id || "");
+    if (announcementId && announcementId === getDismissedAnnouncementId()) {
+      announcementBanner.classList.remove("show");
+      return;
+    }
+
+    if (announcementTitleNode) {
+      announcementTitleNode.textContent = announcement.title || "Announcement";
+    }
+    if (announcementTextNode) {
+      announcementTextNode.textContent = announcement.message || "";
+    }
+    announcementBanner.classList.add("show");
+
+    if (announcementCloseBtn) {
+      announcementCloseBtn.onclick = () => dismissAnnouncement(announcementId);
+    }
+  } catch {
+    // Keep chat usable even if announcement call fails.
+  }
 }
 
 state.conversations = state.conversations.map(conv => ({
@@ -1389,7 +1594,10 @@ state.conversations = state.conversations.map(conv => ({
     id: getMessageId(msg, idx),
     role: msg.role === "user" ? "user" : "bot",
     text: msg.text || msg.content || "",
-    meta: msg.meta || {}
+    meta: {
+      ...(msg.meta || {}),
+      feedback: parseFeedback(msg.feedback) || (msg.meta?.feedback || null)
+    }
   }))
 }));
 state.currentConversationId = normalizeConversationId(state.currentConversationId);
@@ -1403,7 +1611,10 @@ function updateState(newState = {}) {
       id: getMessageId(msg, idx),
       role: msg.role === "user" ? "user" : "bot",
       text: msg.text || msg.content || "",
-      meta: msg.meta || {}
+      meta: {
+        ...(msg.meta || {}),
+        feedback: parseFeedback(msg.feedback) || (msg.meta?.feedback || null)
+      }
     }))
   }));
   state.currentConversationId = normalizeConversationId(state.currentConversationId);
@@ -1491,6 +1702,37 @@ function renderSuggestionChips(meta = {}) {
   return `<div class="bot-suggestions">${chips}</div>`;
 }
 
+function renderFeedbackControls(message) {
+  const feedback = message?.meta?.feedback || null;
+  const selected = feedback?.sentiment || "";
+  const selectedReason = (feedback?.reason || "").trim();
+  const messageId = normalizeMessageId(message?.id);
+  if (!messageId) return "";
+
+  const reasons = [
+    "Incorrect info",
+    "Outdated answer",
+    "Not clear",
+    "Needs more detail"
+  ];
+
+  const reasonButtons = reasons.map(reason => {
+    const activeClass = selected === "down" && selectedReason === reason ? "active" : "";
+    return `<button type="button" class="feedback-reason-btn ${activeClass}" data-feedback-message-id="${escapeHtml(messageId)}" data-feedback-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`;
+  }).join("");
+
+  const downActiveClass = selected === "down" ? "active" : "";
+  const upActiveClass = selected === "up" ? "active" : "";
+
+  return `
+    <div class="bot-feedback" data-feedback-wrap-id="${escapeHtml(messageId)}">
+      <button type="button" class="feedback-btn ${upActiveClass}" data-feedback-message-id="${escapeHtml(messageId)}" data-feedback-sentiment="up" title="Helpful">👍 Helpful</button>
+      <button type="button" class="feedback-btn ${downActiveClass}" data-feedback-message-id="${escapeHtml(messageId)}" data-feedback-sentiment="down" title="Not helpful">👎 Not helpful</button>
+    </div>
+    ${selected === "down" ? `<div class="feedback-reasons">${reasonButtons}</div>` : ""}
+  `;
+}
+
 function renderBotMessageHtml(message) {
   const meta = message?.meta || {};
   const head = `
@@ -1501,7 +1743,48 @@ function renderBotMessageHtml(message) {
   `;
   const body = renderBotContentHtml(message?.text || message?.content || "");
   const suggestions = renderSuggestionChips(meta);
-  return `${head}${body}${suggestions}`;
+  const feedback = renderFeedbackControls(message);
+  return `${head}${body}${suggestions}${feedback}`;
+}
+
+async function submitFeedback(messageId, sentiment, reason = "") {
+  const token = localStorage.getItem("access_token");
+  if (!token) return;
+  try {
+    const response = await fetch(`${API_BASE}/chat/messages/${messageId}/feedback`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ sentiment, reason })
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || "Could not save feedback");
+    }
+
+    const payload = await response.json();
+    const feedback = payload?.feedback || { sentiment, reason };
+    const conv = findConversation(state.currentConversationId);
+    if (!conv) return;
+
+    conv.messages = conv.messages.map(msg => {
+      if (normalizeMessageId(msg.id) !== normalizeMessageId(messageId)) return msg;
+      return {
+        ...msg,
+        meta: {
+          ...(msg.meta || {}),
+          feedback
+        }
+      };
+    });
+
+    updateState();
+    loadConversation(state.currentConversationId, { preserveSelection: true });
+  } catch (error) {
+    alert(error.message || "Could not save feedback");
+  }
 }
 
 function stopStreamingReply() {

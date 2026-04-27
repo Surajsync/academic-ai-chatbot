@@ -115,6 +115,19 @@ class SystemSetting(Base):
     rate_limit_per_hour = Column(Integer, default=60)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+
+# ================= ANNOUNCEMENTS =================
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
 # ================= PASSWORD RESET TOKENS =================
 
 class PasswordResetToken(Base):

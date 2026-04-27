@@ -22,7 +22,7 @@ from jose import JWTError, jwt
 
 from backend.config import settings
 from backend.database.database import SessionLocal, engine
-from backend.database.models import Base, User, UserProfile, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken
+from backend.database.models import Base, User, UserProfile, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken, Announcement
 from backend.security.security import hash_password, verify_password
 from backend.services.auth_service import create_access_token
 from backend.services.chatbot_service import generate_reply_with_source, get_intent_guided_suggestions
@@ -137,10 +137,16 @@ class RegisterRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     conversation_id: int | None = None
+    language: str | None = "auto"
 
 
 class DeleteMessagesRequest(BaseModel):
     message_ids: list[int]
+
+
+class MessageFeedbackRequest(BaseModel):
+    sentiment: str
+    reason: str | None = None
 
 class OtpRequest(BaseModel):
     email: str
@@ -165,6 +171,18 @@ class UserStatusUpdate(BaseModel):
 class FaqCreate(BaseModel):
     keyword: str
     response: str
+
+
+class AnnouncementCreateRequest(BaseModel):
+    title: str
+    message: str
+    is_active: bool = True
+
+
+class AnnouncementUpdateRequest(BaseModel):
+    title: str | None = None
+    message: str | None = None
+    is_active: bool | None = None
 
 
 def _normalize_role_value(role_value: str | None) -> str:
@@ -210,6 +228,58 @@ def _serialize_profile(profile: UserProfile | None, user: User) -> dict:
         "email": user.email,
         "username": user.username,
     }
+
+
+def _parse_feedback_value(raw_feedback: str | None) -> dict | None:
+    value = (raw_feedback or "").strip()
+    if not value:
+        return None
+
+    parts = value.split("|", 1)
+    sentiment = parts[0].strip().lower()
+    reason = parts[1].strip() if len(parts) > 1 else ""
+    if sentiment not in {"up", "down"}:
+        return None
+
+    return {
+        "sentiment": sentiment,
+        "reason": reason,
+    }
+
+
+def _serialize_announcement(announcement: Announcement) -> dict:
+    return {
+        "id": announcement.id,
+        "title": announcement.title,
+        "message": announcement.message,
+        "is_active": bool(announcement.is_active),
+        "created_by_id": announcement.created_by_id,
+        "created_at": announcement.created_at.isoformat() if announcement.created_at else None,
+        "updated_at": announcement.updated_at.isoformat() if announcement.updated_at else None,
+    }
+
+
+def _build_profile_personalization(profile: UserProfile | None, query_text: str) -> str:
+    if not profile:
+        return ""
+
+    profile_bits = []
+    if profile.department:
+        profile_bits.append(f"Department: {profile.department}")
+    if profile.semester:
+        profile_bits.append(f"Semester: {profile.semester}")
+    if profile.year:
+        profile_bits.append(f"Year: {profile.year}")
+
+    if not profile_bits:
+        return ""
+
+    lowered_query = (query_text or "").lower()
+    relevant_hints = ["fee", "fees", "exam", "timetable", "syllabus", "placement", "admission"]
+    if not any(hint in lowered_query for hint in relevant_hints):
+        return ""
+
+    return f"Based on your profile ({', '.join(profile_bits)}):"
 
 
 def _serialize_admin_user(user: User) -> dict:
@@ -655,6 +725,7 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
 
     profile_context_parts = []
     profile = getattr(user, "profile", None)
+    language_pref = (request.language or "auto").strip().lower()
     if profile:
         if profile.display_name:
             profile_context_parts.append(f"name: {profile.display_name}")
@@ -665,6 +736,11 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
         if profile.year:
             profile_context_parts.append(f"year: {profile.year}")
 
+    if language_pref in {"en", "hi"}:
+        profile_context_parts.append(
+            f"preferred_language: {'hindi' if language_pref == 'hi' else 'english'}"
+        )
+
     user_context = "; ".join(profile_context_parts)
 
     reply, reply_source = generate_reply_with_source(
@@ -673,6 +749,10 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
         conversation_history=conversation_history,
         user_context=user_context,
     )
+
+    personalization_line = _build_profile_personalization(profile, request.message)
+    if personalization_line and reply_source in {"structured", "faq", "semantic"}:
+        reply = f"{personalization_line}\n{reply}"
     
     # Categorize the response
     category = categorize_response(request.message)
@@ -721,6 +801,44 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), user: User = Depen
     return response
 
 
+@app.post("/chat/messages/{message_id}/feedback")
+def submit_message_feedback(
+    message_id: int,
+    payload: MessageFeedbackRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    sentiment = (payload.sentiment or "").strip().lower()
+    if sentiment not in {"up", "down"}:
+        raise HTTPException(status_code=400, detail="sentiment must be 'up' or 'down'")
+
+    reason = (payload.reason or "").strip()
+    if len(reason) > 120:
+        raise HTTPException(status_code=400, detail="reason is too long")
+
+    message = (
+        db.query(Message)
+        .join(Conversation, Conversation.id == Message.conversation_id)
+        .filter(
+            Message.id == message_id,
+            Message.role == "bot",
+            Conversation.user_id == user.id,
+        )
+        .first()
+    )
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    message.feedback = f"{sentiment}|{reason}" if reason else sentiment
+    db.add(message)
+    db.commit()
+
+    return {
+        "message": "Feedback saved",
+        "feedback": _parse_feedback_value(message.feedback),
+    }
+
+
 # ================================================================
 #  GET CONVERSATION HISTORY
 # ================================================================
@@ -750,7 +868,8 @@ def get_chat_history(db: Session = Depends(get_db), user: User = Depends(get_cur
                     "id": msg.id,
                     "role": msg.role,
                     "text": msg.content,
-                    "timestamp": msg.timestamp.isoformat()
+                    "timestamp": msg.timestamp.isoformat(),
+                    "feedback": _parse_feedback_value(msg.feedback),
                 }
                 for msg in messages
             ]
@@ -811,12 +930,138 @@ def delete_chat_messages(
 # ================================================================
 @app.get("/admin/dashboard")
 def dashboard(db: Session = Depends(get_db), admin: User = Depends(get_admin)):
+    bot_messages = db.query(Message).filter(Message.role == "bot").all()
+    feedback_entries = [m for m in bot_messages if (m.feedback or "").strip()]
+
+    positive_feedback = 0
+    negative_feedback = 0
+    reason_counter: dict[str, int] = {}
+    fallback_count = 0
+    for message in bot_messages:
+        content_lower = (message.content or "").lower()
+        if any(token in content_lower for token in ["i don't have", "not available", "sorry"]):
+            fallback_count += 1
+
+        parsed = _parse_feedback_value(message.feedback)
+        if not parsed:
+            continue
+        if parsed["sentiment"] == "up":
+            positive_feedback += 1
+        elif parsed["sentiment"] == "down":
+            negative_feedback += 1
+            reason_value = (parsed.get("reason") or "unspecified").strip().lower() or "unspecified"
+            reason_counter[reason_value] = reason_counter.get(reason_value, 0) + 1
+
+    top_negative_reasons = [
+        {"reason": reason, "count": count}
+        for reason, count in sorted(reason_counter.items(), key=lambda item: item[1], reverse=True)[:5]
+    ]
+
+    total_bot_messages = len(bot_messages)
+    fallback_rate = round((fallback_count / total_bot_messages) * 100, 2) if total_bot_messages else 0.0
+
     return {
         "total_faqs":          db.query(FAQ).count(),
         "active_faqs":         db.query(FAQ).filter(FAQ.is_active == True).count(),
         "total_conversations": db.query(Conversation).count(),
-        "failed_queries":      db.query(FailedQuery).count()
+        "failed_queries":      db.query(FailedQuery).count(),
+        "feedback_total":      len(feedback_entries),
+        "feedback_positive":   positive_feedback,
+        "feedback_negative":   negative_feedback,
+        "top_negative_reasons": top_negative_reasons,
+        "fallback_rate":       fallback_rate,
     }
+
+
+@app.get("/announcements/active")
+def get_active_announcement(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    announcement = (
+        db.query(Announcement)
+        .filter(Announcement.is_active == True)
+        .order_by(Announcement.updated_at.desc(), Announcement.id.desc())
+        .first()
+    )
+    if not announcement:
+        return {"announcement": None}
+
+    return {"announcement": _serialize_announcement(announcement)}
+
+
+@app.get("/admin/announcements")
+def get_admin_announcements(db: Session = Depends(get_db), admin: User = Depends(get_admin)):
+    announcements = db.query(Announcement).order_by(Announcement.updated_at.desc(), Announcement.id.desc()).limit(20).all()
+    return [_serialize_announcement(item) for item in announcements]
+
+
+@app.post("/admin/announcements")
+def create_admin_announcement(
+    payload: AnnouncementCreateRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin),
+):
+    title = (payload.title or "").strip()
+    message = (payload.message or "").strip()
+    if not title or not message:
+        raise HTTPException(status_code=400, detail="title and message are required")
+
+    if payload.is_active:
+        db.query(Announcement).filter(Announcement.is_active == True).update({Announcement.is_active: False}, synchronize_session=False)
+
+    announcement = Announcement(
+        title=title,
+        message=message,
+        is_active=payload.is_active,
+        created_by_id=admin.id,
+    )
+    db.add(announcement)
+    db.commit()
+    db.refresh(announcement)
+
+    db.add(AuditLog(user_email=admin.email, action=f"Posted announcement: {title[:60]}"))
+    db.commit()
+
+    return _serialize_announcement(announcement)
+
+
+@app.patch("/admin/announcements/{announcement_id}")
+def update_admin_announcement(
+    announcement_id: int,
+    payload: AnnouncementUpdateRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin),
+):
+    announcement = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+
+    if payload.title is not None:
+        title = payload.title.strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="title cannot be empty")
+        announcement.title = title
+
+    if payload.message is not None:
+        message = payload.message.strip()
+        if not message:
+            raise HTTPException(status_code=400, detail="message cannot be empty")
+        announcement.message = message
+
+    if payload.is_active is not None:
+        if payload.is_active:
+            db.query(Announcement).filter(
+                Announcement.id != announcement.id,
+                Announcement.is_active == True,
+            ).update({Announcement.is_active: False}, synchronize_session=False)
+        announcement.is_active = payload.is_active
+
+    db.add(announcement)
+    db.commit()
+    db.refresh(announcement)
+
+    db.add(AuditLog(user_email=admin.email, action=f"Updated announcement #{announcement.id}"))
+    db.commit()
+
+    return _serialize_announcement(announcement)
 
 
 @app.get("/admin/ai-status")

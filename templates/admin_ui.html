@@ -201,6 +201,8 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 
 .profile-view-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .profile-view-avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;border:1px solid var(--border2);background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--cream2);flex-shrink:0}
+.profile-view-avatar.clickable{cursor:pointer;transition:transform 0.16s ease, box-shadow 0.16s ease}
+.profile-view-avatar.clickable:hover{transform:scale(1.04);box-shadow:0 8px 22px rgba(0,0,0,0.4)}
 .profile-view-meta{display:flex;flex-wrap:wrap;gap:6px}
 .profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .profile-field{border:1px solid var(--border2);border-radius:10px;padding:10px;background:rgba(255,255,255,0.02)}
@@ -208,6 +210,11 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 .profile-field .k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
 .profile-field .v{font-size:12px;color:var(--cream2);word-break:break-word;line-height:1.55}
 .profile-field .v.empty{color:var(--muted)}
+
+.image-preview-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;z-index:1201;padding:22px}
+.image-preview-card{position:relative;max-width:min(680px,94vw);max-height:90vh;background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:12px;box-shadow:0 20px 60px rgba(0,0,0,0.58)}
+.image-preview-photo{display:block;max-width:min(640px,88vw);max-height:80vh;border-radius:12px;object-fit:contain;background:var(--card2)}
+.image-preview-close{position:absolute;top:8px;right:8px;width:30px;height:30px;border:none;border-radius:999px;background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
 
 @media(max-width:560px){
   .profile-grid{grid-template-columns:1fr}
@@ -437,6 +444,50 @@ function getUserById(userId){
   return allUsers.find(user => Number(user.id) === Number(userId)) || null;
 }
 
+function renderUserAvatarHtml(user, colorValue){
+  const username = String(user?.username || "U");
+  const profile = user?.profile || {};
+  if (profile.photo_data) {
+    return `<img class="user-avatar" src="${escapeHtml(profile.photo_data)}" alt="${escapeHtml(username)}" style="background:var(--card2)">`;
+  }
+  return `<div class="user-avatar" style="background:${colorValue}">${escapeHtml(username.charAt(0).toUpperCase())}</div>`;
+}
+
+function closeImagePreview(){
+  document.getElementById("image-preview-overlay")?.remove();
+}
+
+function handleImagePreviewKeydown(event){
+  if (event.key !== "Escape") return;
+  if (!document.getElementById("image-preview-overlay")) return;
+  closeImagePreview();
+}
+
+document.addEventListener("keydown", handleImagePreviewKeydown);
+
+function openImagePreview(photoData, displayName = "User"){
+  const photo = String(photoData || "").trim();
+  if (!photo) {
+    toast("No uploaded image available for this user","info");
+    return;
+  }
+
+  closeImagePreview();
+  const overlay = document.createElement("div");
+  overlay.className = "image-preview-overlay";
+  overlay.id = "image-preview-overlay";
+  overlay.innerHTML = `
+    <div class="image-preview-card">
+      <button type="button" class="image-preview-close" aria-label="Close" onclick="closeImagePreview()">×</button>
+      <img class="image-preview-photo" src="${escapeHtml(photo)}" alt="${escapeHtml(displayName)}">
+    </div>
+  `;
+  overlay.addEventListener("click", event => {
+    if (event.target === overlay) closeImagePreview();
+  });
+  document.body.appendChild(overlay);
+}
+
 function openUserProfile(userId){
   const user = getUserById(userId);
   if (!user) {
@@ -448,7 +499,7 @@ function openUserProfile(userId){
   const displayName = (profile.display_name || user.username || "User").trim();
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]?.toUpperCase()||"").join("") || "U";
   const avatar = profile.photo_data
-    ? `<img class="profile-view-avatar" src="${escapeHtml(profile.photo_data)}" alt="${escapeHtml(displayName)}">`
+    ? `<img class="profile-view-avatar clickable" src="${escapeHtml(profile.photo_data)}" alt="${escapeHtml(displayName)}" title="Click to view image" onclick="openImagePreview(${JSON.stringify(String(profile.photo_data || ""))}, ${JSON.stringify(displayName)})">`
     : `<div class="profile-view-avatar">${escapeHtml(initials)}</div>`;
   const roleBadge = user.role === "admin"
     ? '<span class="badge badge-orange">👑 Admin</span>'
@@ -916,7 +967,7 @@ function renderUsers(users){
       : `<button class="btn btn-sm btn-role" onclick="toggleRole(${u.id},'${u.role}','${safeName}')">Change Role</button>`;
     return `<div class="user-card">
       <div class="user-card-top clickable" onclick="openUserProfile(${u.id})" title="View full profile">
-        <div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div>
+        ${renderUserAvatarHtml(u, col)}
         <div><div class="user-name-line"><div class="user-card-name">${u.username}</div>${mainMarker}</div><div class="user-card-email" title="${u.email}">${u.email}</div></div>
       </div>
       <div class="user-meta">${rb}${pb}${sb}</div>
@@ -1004,7 +1055,7 @@ function redrawUserCards(users){
     const roleBtn=lockedAdminControls
       ? `<button class="btn btn-sm btn-muted" disabled title="Only main admin can change other admin roles">Role Locked</button>`
       : `<button class="btn btn-sm btn-role" onclick="toggleRole(${u.id},'${u.role}','${safeName}')">Change Role</button>`;
-    return `<div class="user-card"><div class="user-card-top clickable" onclick="openUserProfile(${u.id})" title="View full profile"><div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div><div><div class="user-name-line"><div class="user-card-name">${u.username}</div>${mainMarker}</div><div class="user-card-email">${u.email}</div></div></div><div class="user-meta">${rb}${pb}${sb}</div><div class="user-card-footer"><div class="user-actions"><button class="btn btn-sm btn-profile" onclick="openUserProfile(${u.id})">Profile</button>${roleBtn}${blockBtn}</div></div></div>`;
+    return `<div class="user-card"><div class="user-card-top clickable" onclick="openUserProfile(${u.id})" title="View full profile">${renderUserAvatarHtml(u, col)}<div><div class="user-name-line"><div class="user-card-name">${u.username}</div>${mainMarker}</div><div class="user-card-email">${u.email}</div></div></div><div class="user-meta">${rb}${pb}${sb}</div><div class="user-card-footer"><div class="user-actions"><button class="btn btn-sm btn-profile" onclick="openUserProfile(${u.id})">Profile</button>${roleBtn}${blockBtn}</div></div></div>`;
   }).join("");
 }
 
