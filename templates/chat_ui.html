@@ -1469,6 +1469,13 @@ const welcomePrompts = [
   "Need exam or timetable help? Ask directly and I’ll keep it simple and practical."
 ];
 
+  const welcomeBotMessages = [
+    { title: "Hi there", message: "I'm your Academic AI assistant here at REC Bijnor. I'm ready to help you with anything about departments, admissions, fees, placements, clubs, and campus life. What would you like to know?" },
+    { title: "Welcome", message: "I'm here to answer your questions about REC Bijnor quickly and clearly. Whether you're curious about placements, fees, courses, or student life, just ask." },
+    { title: "Hello", message: "Great to meet you. I'm the Academic AI for REC Bijnor students. I can help with departments, placements, scholarships, and campus information." },
+    { title: "Welcome to chat", message: "I can help with admissions info, fee structures, placement stats, department details, scholarships, and more. Ask me anything to get started." }
+  ];
+
 // ================= APP STATE =================
 const state = {
     conversations: JSON.parse(localStorage.getItem("conversations")) || [],
@@ -2190,7 +2197,7 @@ async function deleteConversationById(id) {
         loadConversation(nextConversation.id);
       } else {
         createNewConversation();
-        showWelcomePrompt();
+        showWelcomeWithBotGreeting();
       }
     }
   } catch (error) {
@@ -2651,7 +2658,7 @@ function createNewConversation() {
 }
 
 // ================= WELCOME PROMPT =================
-function showWelcomePrompt() {
+function showWelcomeWithBotGreeting() {
     chatBox.innerHTML = "";
 
     const randomPrompt =
@@ -2756,7 +2763,7 @@ function loadConversation(id, options = {}) {
 
     if (!Array.isArray(conv.messages) || conv.messages.length === 0) {
         updateSearchSummary(0, 0, searchQuery, roleFilter);
-        showWelcomePrompt();
+        showWelcomeWithBotGreeting();
         return;
     }
 
@@ -3039,7 +3046,7 @@ function archiveConversation(id) {
         } else {
             state.currentConversationId = null;
             createNewConversation();
-            showWelcomePrompt();
+            showWelcomeWithBotGreeting();
         }
     }
 }
@@ -3087,11 +3094,54 @@ sendBtn.addEventListener("click", sendMessage);
 stopBtn?.addEventListener("click", cancelAssistantReply);
 
 chatBox.addEventListener("click", event => {
-  const button = event.target.closest(".suggestion-chip-btn");
-  if (!button) return;
-  const suggestion = button.getAttribute("data-suggestion") || "";
-  if (!suggestion.trim()) return;
-  sendMessage(suggestion);
+  // Handle suggestion chips
+  const suggestionBtn = event.target.closest(".suggestion-chip-btn");
+  if (suggestionBtn) {
+    const suggestion = suggestionBtn.getAttribute("data-suggestion") || "";
+    if (!suggestion.trim()) return;
+    sendMessage(suggestion);
+    return;
+  }
+
+  // Handle feedback sentiment buttons (👍 up / 👎 down)
+  const feedbackBtn = event.target.closest(".feedback-btn");
+  if (feedbackBtn) {
+    const messageId = feedbackBtn.getAttribute("data-feedback-message-id");
+    const sentiment = feedbackBtn.getAttribute("data-feedback-sentiment");
+    if (!messageId || !sentiment) return;
+
+    const wrapElement = feedbackBtn.closest(".bot-feedback");
+    const reasonContainer = wrapElement?.nextElementSibling;
+    const isCurrentlyActive = feedbackBtn.classList.contains("active");
+
+    // If clicking active button, toggle off (deselect)
+    if (isCurrentlyActive && sentiment !== "up") {
+      submitFeedback(messageId, "", "");
+    } else if (sentiment === "up") {
+      // Helpful vote: clear reason and submit up sentiment
+      submitFeedback(messageId, "up", "");
+    } else if (sentiment === "down") {
+      // Not helpful vote: if no reason selected yet, just mark sentiment and show reasons
+      const currentFeedback = findConversation(state.currentConversationId)?.messages
+        ?.find(m => normalizeMessageId(m.id) === normalizeMessageId(messageId))?.meta?.feedback;
+      const hasReasonSelected = currentFeedback?.reason && currentFeedback.sentiment === "down";
+      if (!hasReasonSelected) {
+        // Just mark sentiment without reason yet; UI will re-render to show reasons
+        submitFeedback(messageId, "down", "");
+      }
+    }
+    return;
+  }
+
+  // Handle feedback reason buttons
+  const reasonBtn = event.target.closest(".feedback-reason-btn");
+  if (reasonBtn) {
+    const messageId = reasonBtn.getAttribute("data-feedback-message-id");
+    const reason = reasonBtn.getAttribute("data-feedback-reason");
+    if (!messageId || !reason) return;
+    submitFeedback(messageId, "down", reason);
+    return;
+  }
 });
 
 input.addEventListener("keydown", e => {
@@ -3101,7 +3151,7 @@ input.addEventListener("keydown", e => {
 document.querySelector(".new-chat")
     .addEventListener("click", () => {
         createNewConversation();
-        showWelcomePrompt();
+        showWelcomeWithBotGreeting();
     closeChatOptionsMenu();
     });
 
@@ -3116,7 +3166,7 @@ document.querySelector(".logout").addEventListener("click", () => {
 loadConversationsFromBackend().then(() => {
   if (!state.currentConversationId || !findConversation(state.currentConversationId)) {
         createNewConversation();
-        showWelcomePrompt();
+        showWelcomeWithBotGreeting();
     } else {
         renderConversations();
         loadConversation(state.currentConversationId);

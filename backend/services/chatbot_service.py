@@ -319,15 +319,15 @@ def _small_talk_reply(normalized_message: str, query_tokens: set[str]) -> tuple[
 
     if query_tokens.intersection(GREETING_TOKENS):
         return (
-            "Hello! I can help with REC Bijnor information like departments, fees, placements, clubs, and scholarships. What would you like to know?",
+                "Hey there. Great to meet you. I'm here to help with everything about REC Bijnor, including departments, placements, fees, scholarships, and campus life. What can I help you explore today?",
             "smalltalk",
         )
 
     if query_tokens.intersection(THANKS_TOKENS):
-        return ("You're welcome! If you want, ask me anything about REC Bijnor academics or campus details.", "smalltalk")
+            return ("Happy to help. Anytime you have questions about the college, I'm here for you. Feel free to ask.", "smalltalk")
 
     if normalized_message in {"ok", "okay", "great", "nice"}:
-        return ("Happy to help. Ask your next question any time.", "smalltalk")
+            return ("Great. Go ahead and ask me whatever you'd like.", "smalltalk")
 
     return None
 
@@ -522,7 +522,7 @@ def build_context(db: Session, message: str) -> str:
 
     relevant_faqs = _collect_relevant_faqs(db, expanded_query, query_tokens, intent)
     if relevant_faqs:
-        lines.append("📚 VERIFIED FAQS & INFORMATION:")
+        lines.append("VERIFIED FAQS & INFORMATION:")
         for faq in relevant_faqs:
             keyword = _faq_keyword_text(faq).strip()
             response = _faq_response_text(faq).strip()
@@ -541,7 +541,7 @@ def build_context(db: Session, message: str) -> str:
     department_lines = [f"  • {dept.name} - HOD: {dept.hod}" for dept in top_departments]
 
     if department_lines:
-        lines.append("🏫 DEPARTMENTS:")
+        lines.append("DEPARTMENTS:")
         lines.extend(department_lines[:6])
         lines.append("")
 
@@ -555,7 +555,7 @@ def build_context(db: Session, message: str) -> str:
     fee_lines = [f"  • {fee.branch}: ₹{fee.amount}" for fee in top_fees]
 
     if fee_lines:
-        lines.append("💰 FEE STRUCTURE:")
+        lines.append("FEE STRUCTURE:")
         lines.extend(fee_lines[:6])
         lines.append("")
 
@@ -569,7 +569,7 @@ def build_context(db: Session, message: str) -> str:
     )
 
     if top_clubs:
-        lines.append("🎯 CLUBS & ACTIVITIES:")
+        lines.append("CLUBS & ACTIVITIES:")
         for club in top_clubs:
             lines.append(f"  • {club.name} ({club.category}): {club.description}")
         lines.append("")
@@ -598,10 +598,10 @@ def build_context(db: Session, message: str) -> str:
             )
         
         if placement_lines:
-            lines.append("🎓 PLACEMENT RECORDS:")
+            lines.append("PLACEMENT RECORDS:")
             lines.extend(placement_lines)
         elif companies or branches:
-            lines.append("📊 PLACEMENT SUMMARY:")
+            lines.append("PLACEMENT SUMMARY:")
             if companies:
                 lines.append(f"  Companies: {', '.join(sorted(list(companies))[:12])}")
             if branches:
@@ -611,7 +611,7 @@ def build_context(db: Session, message: str) -> str:
         # Show top placements by default
         top_placements = sorted(placements, key=lambda p: float(p.package_lpa) if p.package_lpa else 0, reverse=True)[:3]
         if top_placements:
-            lines.append("🎯 TOP PLACEMENTS:")
+            lines.append("TOP PLACEMENTS:")
             for placement in top_placements:
                 lines.append(
                     f"  • {placement.student_name} ({placement.branch}): {placement.company_name}, ₹{placement.package_lpa} LPA, Year: {placement.placement_year}"

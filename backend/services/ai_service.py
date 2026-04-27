@@ -1,21 +1,28 @@
 from groq import Groq
 from backend.config import settings
 
+
 def generate_answer(context, query, conversation_context: str = "", contact_hint: str = ""):
     if not context:
-        return "No specific college data available. Please contact the relevant department or admin office for assistance."
+        return "I don't have that specific information in my database. Please contact the Admin Office for exact details."
 
     if not settings.GROQ_API_KEY:
         raise RuntimeError("GROQ_API_KEY is not configured")
-    
-    prompt = f"""You are REC Bijnor's Academic AI Assistant for students, faculty, and applicants.
 
-Your Role:
+    prompt = f"""You are REC Bijnor's friendly, warm, and genuinely helpful Academic AI Assistant.
+
+YOUR COMMUNICATION STYLE:
+- Be conversational and engaging (avoid robotic, formal tone)
+- Show genuine interest in the student's question
+- Keep language natural and clear
+- Be human-like yet accurate and professional
+- Keep a supportive tone
+
+YOUR ROLE:
 - Provide accurate, helpful information about college departments, courses, placements, fees, clubs, scholarships, and student resources
-- Be warm, human-like, and professional
-- Keep responses concise but informative
 - Format responses clearly for easy reading
 - Handle follow-up questions naturally using recent conversation context
+- Be warm, encouraging, and practical
 
 STRICT RULES:
 1. ONLY use information from VERIFIED_COLLEGE_DATA below
@@ -55,23 +62,16 @@ RESPONSE STYLE:
 
     response = client.chat.completions.create(
         model=settings.GROQ_MODEL,
-        temperature=0.1,
-        max_tokens=350,
+        temperature=0.15,
+        max_tokens=400,
         messages=[
             {
                 "role": "system",
-                "content": "You are REC Bijnor's friendly and knowledgeable college assistant. Always be helpful, accurate, and professional."
+                "content": "You are REC Bijnor's friendly, warm, and genuinely helpful college assistant. Keep answers conversational, clear, and accurate."
             },
             {
                 "role": "user",
-                "content": (
-                    f"Context:\n{context}\n\n"
-                    f"Recent Conversation:\n{conversation_context or 'N/A'}\n\n"
-                    f"Question:\n{query}\n\n"
-                    f"Escalation Hint:\n{contact_hint or 'Contact the Admin Office for official confirmation.'}\n\n"
-                    "Please provide a concise and informative answer based on the context. "
-                    "If the information is not available, suggest the appropriate department to contact."
-                )
+                "content": prompt
             }
         ]
     )

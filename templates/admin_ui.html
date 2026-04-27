@@ -245,6 +245,7 @@ tr:hover td{background:rgba(255,255,255,0.015)}
   <button class="nav-item active" id="nav-dashboard" onclick="goto('dashboard')"><span class="nav-icon">📊</span><span>Dashboard</span></button>
   <div class="nav-group-label">Chatbot</div>
   <button class="nav-item" id="nav-faqs" onclick="goto('faqs')"><span class="nav-icon">🧠</span><span>Knowledge Base</span></button>
+  <button class="nav-item" id="nav-announcements" onclick="goto('announcements')"><span class="nav-icon">📢</span><span>Announcements</span></button>
   <button class="nav-item" id="nav-failed" onclick="goto('failed')"><span class="nav-icon">⚠️</span><span>Failed Queries</span><span class="nav-badge" id="failed-badge" style="display:none">0</span></button>
   <div class="nav-group-label">People</div>
   <button class="nav-item" id="nav-users" onclick="goto('users')"><span class="nav-icon">👥</span><span>Users</span></button>
@@ -392,15 +393,15 @@ function goto(page){
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
   const btn=document.getElementById("nav-"+page);
   if(btn) btn.classList.add("active");
-  const titles={dashboard:"Dashboard",faqs:"Knowledge Base",failed:"Failed Queries",users:"Users",audit:"Audit Logs",help:"Help & Guide"};
+  const titles={dashboard:"Dashboard",faqs:"Knowledge Base",announcements:"Announcements",failed:"Failed Queries",users:"Users",audit:"Audit Logs",help:"Help & Guide"};
   document.getElementById("page-title").textContent  = titles[page]||page;
   document.getElementById("breadcrumb").textContent  = "Home / "+(titles[page]||page);
-  const fn={dashboard:loadDashboard,faqs:loadFAQs,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
+  const fn={dashboard:loadDashboard,faqs:loadFAQs,announcements:loadAnnouncements,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
   if(fn[page]) fn[page]();
 }
 
 function refreshCurrentSection(){
-  const fn={dashboard:loadDashboard,faqs:loadFAQs,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
+  const fn={dashboard:loadDashboard,faqs:loadFAQs,announcements:loadAnnouncements,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
   if(fn[activeSection]) fn[activeSection]();
 }
 
@@ -556,6 +557,15 @@ async function loadDashboard(){
     const aiStateClass = aiReady ? "badge-green" : (ai.enabled ? "badge-yellow" : "badge-red");
     if(highFreq>0){document.getElementById("failed-badge").textContent=highFreq;document.getElementById("failed-badge").style.display="inline"}
     const coveragePct=d.total_faqs>0?Math.round((d.active_faqs/d.total_faqs)*100):0;
+    
+    // Quality metrics
+    const feedbackTotal = d.feedback_total || 0;
+    const feedbackPositive = d.feedback_positive || 0;
+    const feedbackNegative = d.feedback_negative || 0;
+    const fallbackRate = d.fallback_rate || 0;
+    const feedbackPositivePct = feedbackTotal > 0 ? Math.round((feedbackPositive / feedbackTotal) * 100) : 0;
+    const feedbackNegativePct = feedbackTotal > 0 ? Math.round((feedbackNegative / feedbackTotal) * 100) : 0;
+    const topNegativeReasons = (d.top_negative_reasons || []).slice(0,3);
 
     document.getElementById("content").innerHTML=`
       <div class="stats-grid">
@@ -600,6 +610,33 @@ async function loadDashboard(){
           <div style="margin-top:20px"><canvas id="convChart" height="140"></canvas></div>
         </div>
         <div class="panel">
+          <div class="panel-title">👍👎 Feedback & Quality</div>
+          <div class="status-lines">
+            <div class="status-line"><span class="status-key">Total Feedback</span><span class="status-val">${feedbackTotal}</span></div>
+            <div class="status-line"><span class="status-key">Positive</span><span style="color:var(--green);font-weight:600">${feedbackPositive} (${feedbackPositivePct}%)</span></div>
+            <div class="status-line"><span class="status-key">Negative</span><span style="color:var(--red);font-weight:600">${feedbackNegative} (${feedbackNegativePct}%)</span></div>
+          </div>
+          <div style="margin-top:12px">
+            <div class="progress-label">Satisfaction Rate</div>
+            <div class="progress-track"><div class="progress-fill" style="width:${feedbackPositivePct}%;background:linear-gradient(90deg,var(--green),var(--teal))"></div></div>
+            <div class="progress-value">${feedbackPositivePct}%</div>
+          </div>
+          ${topNegativeReasons.length > 0 ? `
+          <div style="margin-top:14px">
+            <div class="panel-title">⚠️ Top Issues from Feedback</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${topNegativeReasons.map(r => `<div style="padding:6px 10px;background:rgba(244,63,94,0.1);border-left:3px solid var(--red);border-radius:4px;font-size:11px">${escapeHtml(r)}</div>`).join('')}
+            </div>
+          </div>
+          ` : ''}
+          <div style="margin-top:14px">
+            <div class="progress-label">Fallback Rate</div>
+            <div class="progress-track"><div class="progress-fill" style="width:${fallbackRate}%;background:linear-gradient(90deg,${fallbackRate > 30 ? 'var(--red)' : fallbackRate > 15 ? 'var(--yellow)' : 'var(--green)'},${fallbackRate > 30 ? '#fb7185' : fallbackRate > 15 ? '#fbbf24' : '#10d9a0'})"></div></div>
+            <div class="progress-value">${fallbackRate.toFixed(1)}%</div>
+            <div class="progress-sub">${fallbackRate > 30 ? '⚠️ High - increase FAQ coverage' : fallbackRate > 15 ? '⚠️ Moderate - add more FAQs' : '✓ Good - knowledge base is effective'}</div>
+          </div>
+        </div>
+        <div class="panel">
           <div class="panel-title">🤖 AI Layer Status</div>
           <div class="status-lines">
             <div class="status-line"><span class="status-key">State</span><span class="badge ${aiStateClass}">${aiState}</span></div>
@@ -620,12 +657,16 @@ async function loadDashboard(){
             <div class="qa-icon" style="background:rgba(240,144,13,0.15)">➕</div>
             <div><div class="qa-title">Add New FAQ</div><div class="qa-desc">Teach the chatbot a new answer</div></div>
           </button>
+          <button class="quick-action" onclick="goto('announcements')">
+            <div class="qa-icon" style="background:rgba(96,165,250,0.15)">📢</div>
+            <div><div class="qa-title">Post Announcement</div><div class="qa-desc">Notify students about important updates</div></div>
+          </button>
           <button class="quick-action" onclick="goto('failed')">
             <div class="qa-icon" style="background:rgba(244,63,94,0.15)">⚠️</div>
             <div><div class="qa-title">Fix Failed Queries</div><div class="qa-desc">${failed.length} unanswered questions</div></div>
           </button>
           <button class="quick-action" onclick="goto('users')">
-            <div class="qa-icon" style="background:rgba(96,165,250,0.15)">👥</div>
+            <div class="qa-icon" style="background:rgba(16,217,160,0.15)">👥</div>
             <div><div class="qa-title">Manage Users</div><div class="qa-desc">${users.length} registered users</div></div>
           </button>
           <button class="quick-action" onclick="goto('help')">
@@ -793,6 +834,134 @@ async function confirmDeleteFAQ(id){
   if (!canRunMutation()) return;
   try{await fetch(`${API}/admin/faqs/${id}`,{method:"DELETE",headers:H()});closeModal();toast("FAQ deleted");loadFAQs();}
   catch(e){toast("Delete failed","error")}
+  finally{finishMutation()}
+}
+
+// ── ANNOUNCEMENTS ──
+let allAnnouncements = [];
+let announcementPage = 1;
+const announcementsPerPage = 10;
+
+async function loadAnnouncements(){
+  document.getElementById("content").innerHTML=`<div class="empty"><div class="empty-icon">⏳</div><p>Loading announcements...</p></div>`;
+  try{
+    const res=await fetch(`${API}/admin/announcements`,{headers:H()});
+    allAnnouncements=await res.json();
+    announcementPage=1;
+    renderAnnouncements();
+  }catch(e){toast("Failed to load announcements","error")}
+}
+
+function renderAnnouncements(){
+  const total=allAnnouncements.length;
+  const pages=Math.ceil(total/announcementsPerPage);
+  const start=(announcementPage-1)*announcementsPerPage;
+  const paged=allAnnouncements.slice(start,start+announcementsPerPage);
+  
+  let rows=paged.map(a=>{
+    const createdDate = new Date(a.created_at).toLocaleDateString();
+    return `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)">#${a.id}</td>
+      <td><strong>${escapeHtml(a.title)}</strong></td>
+      <td><span class="truncate" title="${a.message.replace(/"/g,'&quot;')}">${a.message.substring(0,50)}${a.message.length>50?'...':''}</span></td>
+      <td><span class="badge ${a.is_active?'badge-green':'badge-red'}">${a.is_active?'Active':'Inactive'}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${createdDate}</td>
+      <td><div class="action-group">
+        <button class="btn btn-ghost btn-sm" onclick='editAnnouncement(${a.id},${JSON.stringify(a.title)},${JSON.stringify(a.message)},${a.is_active})'>✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAnnouncement(${a.id})">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join("");
+  
+  let pagerBtns="";
+  for(let i=1;i<=pages;i++) pagerBtns+=`<button class="page-btn ${i===announcementPage?'active':''}" onclick="changeAnnouncementPage(${i})">${i}</button>`;
+
+  document.getElementById("content").innerHTML=`
+    <div class="section-hdr">
+      <h2>📢 Announcements <span class="count">${total} total</span></h2>
+      <button class="btn btn-primary" onclick="openCreateAnnouncement()">➕ New Announcement</button>
+    </div>
+    <div class="info-box"><span class="info-icon">💡</span><span>Create announcements that appear in the chat interface to notify students of important updates. Students can dismiss each announcement individually. Only one active announcement displays at a time.</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Title</th><th>Message</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="6"><div class="empty"><div class="empty-icon">📭</div><h3>No Announcements</h3><p>No announcements created yet.</p></div></td></tr>'}</tbody>
+      </table>
+      ${pages>1?`<div class="pagination"><div class="page-info">Showing ${start+1}–${Math.min(start+announcementsPerPage,total)} of ${total}</div><div class="page-btns">${pagerBtns}</div></div>`:''}
+    </div>`;
+}
+
+function changeAnnouncementPage(p){announcementPage=p;renderAnnouncements()}
+
+function openCreateAnnouncement(){
+  modal(`<div class="modal-header"><h2>📢 Create New Announcement</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="info-box"><span class="info-icon">💡</span><span>This announcement will appear in the chat interface. Students will see a banner with your message and can dismiss it.</span></div>
+    <div class="field"><label>Announcement Title *</label><input type="text" id="m-ann-title" placeholder="e.g. Exam Schedule Released" maxlength="100"></div>
+    <div class="field"><label>Message *</label><textarea id="m-ann-msg" placeholder="Type the announcement message…" oninput="document.getElementById('m-ann-cc').textContent=this.value.length+' chars'"></textarea><div class="char-count" id="m-ann-cc">0 chars</div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitCreateAnnouncement()">📢 Create & Activate</button></div>`);
+}
+
+async function submitCreateAnnouncement(){
+  const title = document.getElementById("m-ann-title").value.trim();
+  const message = document.getElementById("m-ann-msg").value.trim();
+  if(!title||!message){toast("Please fill in all fields","warn");return}
+  if (!canRunMutation()) return;
+  try{
+    const res=await fetch(`${API}/admin/announcements`,{
+      method:"POST",
+      headers:H({'Content-Type':'application/json'}),
+      body:JSON.stringify({title,message,is_active:true})
+    });
+    if(!res.ok)throw new Error('Failed to create');
+    closeModal();
+    toast("Announcement created and activated ✓");
+    loadAnnouncements();
+  }catch(e){toast("Failed to create announcement","error")}
+  finally{finishMutation()}
+}
+
+function editAnnouncement(id,title,message,isActive){
+  modal(`<div class="modal-header"><h2>✏️ Edit Announcement #${id}</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="field"><label>Announcement Title *</label><input type="text" id="m-ann-title" value="${escapeHtml(title)}" placeholder="e.g. Exam Schedule Released" maxlength="100"></div>
+    <div class="field"><label>Message *</label><textarea id="m-ann-msg" placeholder="Type the announcement message…" oninput="document.getElementById('m-ann-cc').textContent=this.value.length+' chars'">${escapeHtml(message)}</textarea><div class="char-count" id="m-ann-cc">${message.length} chars</div></div>
+    <div class="field"><label><input type="checkbox" id="m-ann-active" ${isActive?'checked':''} style="margin-right:8px;">Active (visible to students)</label></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="confirmEditAnnouncement(${id})">✏️ Save Changes</button></div>`);
+}
+
+async function confirmEditAnnouncement(id){
+  const title = document.getElementById("m-ann-title").value.trim();
+  const message = document.getElementById("m-ann-msg").value.trim();
+  const isActive = document.getElementById("m-ann-active").checked;
+  if(!title||!message){toast("Please fill in all fields","warn");return}
+  if (!canRunMutation()) return;
+  try{
+    const res=await fetch(`${API}/admin/announcements/${id}`,{
+      method:"PATCH",
+      headers:H({'Content-Type':'application/json'}),
+      body:JSON.stringify({title,message,is_active:isActive})
+    });
+    if(!res.ok)throw new Error('Failed to update');
+    closeModal();
+    toast("Announcement updated ✓");
+    loadAnnouncements();
+  }catch(e){toast("Failed to update announcement","error")}
+  finally{finishMutation()}
+}
+
+function deleteAnnouncement(id){
+  modal(`<div class="modal-header"><h2>🗑️ Delete Announcement #${id}?</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="warn-box"><span class="info-icon">⚠️</span><span>This announcement will be permanently removed from the system. Students will no longer see it. This cannot be undone.</span></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Keep It</button><button class="btn btn-danger" onclick="confirmDeleteAnnouncement(${id})">Yes, Delete</button></div>`);
+}
+
+async function confirmDeleteAnnouncement(id){
+  if (!canRunMutation()) return;
+  try{
+    await fetch(`${API}/admin/announcements/${id}`,{method:"DELETE",headers:H()});
+    closeModal();
+    toast("Announcement deleted");
+    loadAnnouncements();
+  }catch(e){toast("Delete failed","error")}
   finally{finishMutation()}
 }
 
