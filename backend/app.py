@@ -1064,6 +1064,26 @@ def update_admin_announcement(
     return _serialize_announcement(announcement)
 
 
+@app.delete("/admin/announcements/{announcement_id}")
+def delete_admin_announcement(
+    announcement_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin),
+):
+    announcement = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+
+    title = announcement.title or f"#{announcement.id}"
+    db.delete(announcement)
+    db.commit()
+
+    db.add(AuditLog(user_email=admin.email, action=f"Deleted announcement: {title[:60]}"))
+    db.commit()
+
+    return {"message": "Announcement deleted successfully", "deleted_id": announcement_id}
+
+
 @app.get("/admin/ai-status")
 def ai_status(admin: User = Depends(get_admin)):
     """Admin-only endpoint to quickly verify AI layer configuration."""

@@ -119,6 +119,9 @@ GREETING_TOKENS = {
     "hi", "hii", "hiii", "hello", "hey", "yo", "hola", "namaste", "hlo", "sup"
 }
 THANKS_TOKENS = {"thanks", "thank", "thx", "thankyou", "thankyou!", "thankyou."}
+CHAT_INTENT_TOKENS = {
+    "name", "mera", "naam", "kya", "haal", "chal", "talk", "chat", "baat", "help", "tum", "yourself"
+}
 
 DOMAIN_KEYWORDS = {
     "rec", "bijnor", "aktu", "department", "branch", "fee", "hostel", "placement",
@@ -198,6 +201,15 @@ def _detect_intent(query_tokens: set[str]) -> str:
 
 def _is_probably_out_of_scope(normalized_message: str, query_tokens: set[str]) -> bool:
     if not normalized_message:
+        return False
+
+    # Keep conversational prompts in-domain so chat feels natural.
+    if query_tokens.intersection(CHAT_INTENT_TOKENS):
+        return False
+
+    if any(phrase in normalized_message for phrase in [
+        "my name", "mera naam", "naam kya", "can you talk", "talk with me", "chat with me", "tum kya"
+    ]):
         return False
 
     if any(signal in normalized_message for signal in OUT_OF_SCOPE_SIGNALS):
@@ -313,9 +325,36 @@ def _top_scored_records(records, query_tokens: set[str], text_getter, limit: int
     return [record for _score, record in ranked[:limit]]
 
 
-def _small_talk_reply(normalized_message: str, query_tokens: set[str]) -> tuple[str, str] | None:
+def _extract_profile_name(user_context: str) -> str:
+    if not user_context:
+        return ""
+    match = re.search(r"name\s*:\s*([^;\n]+)", user_context, flags=re.IGNORECASE)
+    return match.group(1).strip() if match else ""
+
+
+def _small_talk_reply(normalized_message: str, query_tokens: set[str], user_context: str = "") -> tuple[str, str] | None:
     if not normalized_message:
         return None
+
+    if any(phrase in normalized_message for phrase in ["my name", "mera naam", "naam kya"]):
+        profile_name = _extract_profile_name(user_context)
+        if profile_name:
+            return (f"Your name in profile is {profile_name}. If this is outdated, you can update it from Edit Profile.", "smalltalk")
+        return ("I could not find your name in profile yet. You can add it using Edit Profile and I will remember it in chat.", "smalltalk")
+
+    if any(phrase in normalized_message for phrase in [
+        "what can you do", "tum kya", "kya kar", "can you help", "help me", "your capabilities"
+    ]):
+        return (
+            "I can chat with you and help with REC Bijnor information like admissions, fees, departments, placements, scholarships, timetable, exams, and campus details. You can ask in English or Hindi.",
+            "smalltalk",
+        )
+
+    if any(phrase in normalized_message for phrase in ["talk with me", "chat with me", "baat", "kya haal", "kaise ho"]):
+        return (
+            "Yes, absolutely. I can talk with you naturally and also help with college-related questions whenever you need.",
+            "smalltalk",
+        )
 
     if query_tokens.intersection(GREETING_TOKENS):
         return (
@@ -657,16 +696,16 @@ def _generate_reply_with_source(
         conversation_history,
     )
 
+    small_talk = _small_talk_reply(normalized_message, query_tokens, user_context=user_context)
+    if small_talk:
+        return _clean_reply_text(small_talk[0]), small_talk[1]
+
     if _is_probably_out_of_scope(normalized_message, query_tokens):
         reply = (
             "I can help only with REC Bijnor academic and campus queries, such as admissions, fees, "
             "departments, timetable, exams, placements, clubs, and scholarships."
         )
         return _clean_reply_text(reply), "scope-guard"
-
-    small_talk = _small_talk_reply(normalized_message, query_tokens)
-    if small_talk:
-        return _clean_reply_text(small_talk[0]), small_talk[1]
 
     intent = _detect_intent(query_tokens)
 

@@ -1469,6 +1469,13 @@ const welcomePrompts = [
   "Need exam or timetable help? Ask directly and I’ll keep it simple and practical."
 ];
 
+const welcomeConversationStarters = [
+  "Can you tell me my profile name?",
+  "Can we chat for a minute?",
+  "What can you help me with?",
+  "I feel confused about my next step"
+];
+
   const welcomeBotMessages = [
     { title: "Hi there", message: "I'm your Academic AI assistant here at REC Bijnor. I'm ready to help you with anything about departments, admissions, fees, placements, clubs, and campus life. What would you like to know?" },
     { title: "Welcome", message: "I'm here to answer your questions about REC Bijnor quickly and clearly. Whether you're curious about placements, fees, courses, or student life, just ask." },
@@ -1553,6 +1560,10 @@ function getDismissedAnnouncementId() {
 function dismissAnnouncement(announcementId) {
   localStorage.setItem("dismissedAnnouncementId", String(announcementId || ""));
   announcementBanner?.classList.remove("show");
+}
+
+function resetDismissedAnnouncement() {
+  localStorage.removeItem("dismissedAnnouncementId");
 }
 
 async function loadActiveAnnouncement() {
@@ -2669,6 +2680,15 @@ function showWelcomeWithBotGreeting() {
     hero.innerText = randomPrompt;
 
     chatBox.appendChild(hero);
+
+    const starterChips = welcomeConversationStarters
+      .map(item => `<button type="button" class="suggestion-chip-btn" data-suggestion="${escapeHtml(item)}">${escapeHtml(item)}</button>`)
+      .join("");
+
+    const starterWrap = document.createElement("div");
+    starterWrap.className = "bot-suggestions";
+    starterWrap.innerHTML = starterChips;
+    chatBox.appendChild(starterWrap);
 }
 
 // ================= CREATE CONVERSATION ITEM =================
@@ -3151,6 +3171,8 @@ input.addEventListener("keydown", e => {
 document.querySelector(".new-chat")
     .addEventListener("click", () => {
         createNewConversation();
+    resetDismissedAnnouncement();
+    loadActiveAnnouncement();
         showWelcomeWithBotGreeting();
     closeChatOptionsMenu();
     });

@@ -957,7 +957,11 @@ function deleteAnnouncement(id){
 async function confirmDeleteAnnouncement(id){
   if (!canRunMutation()) return;
   try{
-    await fetch(`${API}/admin/announcements/${id}`,{method:"DELETE",headers:H()});
+    const res = await fetch(`${API}/admin/announcements/${id}`,{method:"DELETE",headers:H()});
+    if(!res.ok){
+      const data = await res.json().catch(()=>({}));
+      throw new Error(data.detail || "Failed to delete announcement");
+    }
     closeModal();
     toast("Announcement deleted");
     loadAnnouncements();
