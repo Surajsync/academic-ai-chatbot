@@ -177,6 +177,68 @@ html,body{
 }
 
 
+.header-menu-wrap{
+  position:relative;
+  margin-left:auto;
+  align-self:flex-start;
+}
+
+.header-menu-btn{
+  width:44px;
+  height:44px;
+  border-radius:12px;
+  border:1px solid var(--border-subtle);
+  background:rgba(255,255,255,0.06);
+  color:var(--cream);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  font-size:22px;
+  line-height:1;
+}
+
+.header-menu-btn:hover{
+  background:rgba(232,130,12,0.14);
+}
+
+.header-menu-dropdown{
+  position:absolute;
+  right:0;
+  top:52px;
+  width:min(320px, calc(100vw - 30px));
+  background:rgba(15,23,42,0.98);
+  border:1px solid var(--border-subtle);
+  border-radius:14px;
+  box-shadow:0 18px 40px rgba(0,0,0,0.42);
+  display:none;
+  flex-direction:column;
+  overflow:hidden;
+  z-index:260;
+}
+
+.header-menu-dropdown.open{
+  display:flex;
+}
+
+.header-menu-section{
+  padding:12px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+
+.header-menu-section:last-child{
+  border-bottom:none;
+}
+
+.header-menu-label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.9px;
+  color:var(--muted);
+  margin-bottom:10px;
+}
+
+
 .assistant-tools{
   margin:10px 0 14px;
   padding:12px;
@@ -186,16 +248,6 @@ html,body{
   display:flex;
   flex-direction:column;
   gap:10px;
-}
-
-.assistant-tools-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  font-size:12px;
-  color:var(--muted);
-  letter-spacing:0.6px;
-  text-transform:uppercase;
 }
 
 .tool-search-wrap{
@@ -241,6 +293,10 @@ html,body{
   gap:8px;
   align-items:center;
   flex-wrap:wrap;
+}
+
+.tool-group.compact{
+  justify-content:space-between;
 }
 
 .tool-action-btn.danger{
@@ -1049,6 +1105,11 @@ html,body{
   }
 }
 
+.hero-welcome code{
+  color:inherit;
+  font-family:'Outfit',sans-serif;
+}
+
 
 </style>
 </head>
@@ -1106,34 +1167,39 @@ html,body{
       <h1>Rajkiya Engineering College, Bijnor</h1>
       <p class="sub-title">Academic AI</p>
     </div>
+
+    <div class="header-menu-wrap">
+      <button id="chat-options-btn" class="header-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Chat options">⋮</button>
+      <div id="chat-options-menu" class="header-menu-dropdown" role="menu" aria-label="Chat actions">
+        <div class="header-menu-section">
+          <div class="header-menu-label">Chat Actions</div>
+          <div class="tool-group" id="chat-action-tools">
+            <button id="toggle-select-btn" class="tool-action-btn" type="button" data-chat-action="toggle-select-mode">Enable Selection</button>
+            <button class="tool-action-btn" type="button" data-chat-action="select-all">Select All</button>
+            <button class="tool-action-btn" type="button" data-chat-action="unselect-all">Clear Selection</button>
+            <button class="tool-action-btn danger" type="button" data-chat-action="delete-selected">Delete Selected</button>
+            <button class="tool-action-btn" type="button" data-chat-action="export-chat">Export</button>
+            <button class="tool-action-btn danger" type="button" data-chat-action="clear-chat">Clear Chat</button>
+            <span id="selected-count-chip" class="selected-chip is-hidden">0 selected</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="assistant-tools" id="assistant-tools">
-    <div class="assistant-tools-head">
-      <span>Academic AI Workspace</span>
-      <span id="search-result-count" class="search-summary">Showing all messages</span>
-    </div>
-
     <div class="tool-search-wrap">
       <input id="chat-search-input" class="tool-search" type="text" placeholder="Search this conversation...">
       <button id="clear-search-btn" class="tool-clear-btn" type="button">Clear</button>
     </div>
 
     <div class="tool-grid">
-      <div class="tool-group" id="search-role-filters">
+      <div class="tool-group compact" id="search-role-filters">
         <button class="tool-role-btn active" type="button" data-search-role="all">All</button>
         <button class="tool-role-btn" type="button" data-search-role="user">Student</button>
         <button class="tool-role-btn" type="button" data-search-role="bot">Assistant</button>
       </div>
-      <div class="tool-group" id="chat-action-tools">
-        <button id="toggle-select-btn" class="tool-action-btn" type="button" data-chat-action="toggle-select-mode">Enable Selection</button>
-        <button class="tool-action-btn" type="button" data-chat-action="select-all">Select All</button>
-        <button class="tool-action-btn" type="button" data-chat-action="unselect-all">Clear Selection</button>
-        <button class="tool-action-btn danger" type="button" data-chat-action="delete-selected">Delete Selected</button>
-        <button class="tool-action-btn" type="button" data-chat-action="export-chat">Export</button>
-        <button class="tool-action-btn danger" type="button" data-chat-action="clear-chat">Clear Chat</button>
-        <span id="selected-count-chip" class="selected-chip is-hidden">0 selected</span>
-      </div>
+      <span id="search-result-count" class="search-summary">Showing all messages</span>
     </div>
   </div>
 
@@ -1184,6 +1250,8 @@ const sendBtn = document.getElementById("send-btn");
 const stopBtn = document.getElementById("stop-btn");
 const conversationList = document.getElementById("conversation-list");
 const editProfileBtn = document.getElementById("edit-profile-btn");
+const chatOptionsBtn = document.getElementById("chat-options-btn");
+const chatOptionsMenu = document.getElementById("chat-options-menu");
 const chatSearchInput = document.getElementById("chat-search-input");
 const clearSearchBtn = document.getElementById("clear-search-btn");
 const searchResultCount = document.getElementById("search-result-count");
@@ -1231,6 +1299,10 @@ enforceChatAccess();
 loadUserProfile();
 
 editProfileBtn?.addEventListener("click", openProfileModal);
+chatOptionsBtn?.addEventListener("click", event => {
+  event.stopPropagation();
+  toggleChatOptionsMenu();
+});
 chatSearchInput?.addEventListener("input", () => {
   loadConversation(state.currentConversationId, { preserveSelection: true });
 });
@@ -1243,7 +1315,7 @@ searchRoleFilters?.addEventListener("click", event => {
   if (!button) return;
   setSearchRole(button.getAttribute("data-search-role") || "all");
 });
-assistantTools?.addEventListener("click", handleChatOptionsClick);
+chatOptionsMenu?.addEventListener("click", handleChatOptionsClick);
 messageContextMenu?.addEventListener("click", handleMessageContextMenuClick);
 document.addEventListener("click", handleDocumentClick);
 
@@ -1289,7 +1361,15 @@ const welcomePrompts = [
   "Need placement insights? Ask for year-wise company and package details.",
   "You can ask branch-wise fee details, scholarship options, and admission guidance.",
   "Try: 'Show CSE placement details with year and package'.",
-  "I can also help with HOD information, exam queries, and timetable-related guidance."
+  "I can also help with HOD information, exam queries, and timetable-related guidance.",
+  "Ask me about hostels, labs, campus life, or student clubs whenever you need quick help.",
+  "If you are planning admissions, I can help with eligibility, documents, and first steps.",
+  "Need a department overview? I can summarize faculty, curriculum, and key academic details.",
+  "From scholarships to semester support, I can guide you through common college questions.",
+  "Want placement context? Ask for company names, package trends, and year-wise highlights.",
+  "I can also point you to useful contacts like HODs, exam cells, and department guidance.",
+  "Start with a simple question like 'What are the scholarship options for first-year students?'",
+  "Need exam or timetable help? Ask directly and I’ll keep it simple and practical."
 ];
 
 // ================= APP STATE =================
@@ -1922,6 +2002,27 @@ function updateSelectionBadge() {
   }
 }
 
+function openChatOptionsMenu() {
+  if (!chatOptionsMenu || !chatOptionsBtn) return;
+  chatOptionsMenu.classList.add("open");
+  chatOptionsBtn.setAttribute("aria-expanded", "true");
+}
+
+function closeChatOptionsMenu() {
+  if (!chatOptionsMenu || !chatOptionsBtn) return;
+  chatOptionsMenu.classList.remove("open");
+  chatOptionsBtn.setAttribute("aria-expanded", "false");
+}
+
+function toggleChatOptionsMenu() {
+  if (!chatOptionsMenu || !chatOptionsBtn) return;
+  if (chatOptionsMenu.classList.contains("open")) {
+    closeChatOptionsMenu();
+  } else {
+    openChatOptionsMenu();
+  }
+}
+
 function openMessageContextMenu(event, messageId) {
   if (!messageContextMenu) return;
   event.preventDefault();
@@ -1952,6 +2053,14 @@ function closeMessageContextMenu() {
 function handleDocumentClick(event) {
   if (messageContextMenu && !messageContextMenu.contains(event.target)) {
     closeMessageContextMenu();
+  }
+
+  if (chatOptionsMenu && chatOptionsBtn) {
+    const clickedInsideMenu = chatOptionsMenu.contains(event.target);
+    const clickedButton = chatOptionsBtn.contains(event.target);
+    if (!clickedInsideMenu && !clickedButton) {
+      closeChatOptionsMenu();
+    }
   }
 }
 
@@ -2012,6 +2121,8 @@ function handleChatOptionsClick(event) {
     default:
       break;
   }
+
+  closeChatOptionsMenu();
 }
 
 function setSelectMode(enabled) {
@@ -2764,6 +2875,7 @@ document.querySelector(".new-chat")
     .addEventListener("click", () => {
         createNewConversation();
         showWelcomePrompt();
+    closeChatOptionsMenu();
     });
 
 document.querySelector(".logout").addEventListener("click", () => {
