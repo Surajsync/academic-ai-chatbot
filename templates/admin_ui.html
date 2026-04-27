@@ -179,6 +179,7 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 .user-card{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:16px;transition:all 0.2s}
 .user-card:hover{border-color:var(--border);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
 .user-card-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.user-card-top.clickable{cursor:pointer}
 .user-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0}
 .user-name-line{display:flex;align-items:center;gap:8px}
 .user-card-name{font-size:13px;font-weight:600}
@@ -186,7 +187,7 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 .name-badge-main{font-size:9px;letter-spacing:.8px;padding:2px 7px;border-radius:999px;border:1px solid rgba(251,191,36,0.28);background:rgba(251,191,36,0.12);color:var(--yellow);font-weight:700}
 .user-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .user-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.user-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.user-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;width:100%}
 .user-actions .btn{width:100%;justify-content:center}
 .btn-role{background:rgba(96,165,250,0.08);color:var(--blue);border:1px solid rgba(96,165,250,0.22)}
 .btn-role:hover{background:rgba(96,165,250,0.16)}
@@ -195,6 +196,23 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 .btn-unlock{background:rgba(16,217,160,0.12);color:var(--green);border:1px solid rgba(16,217,160,0.25)}
 .btn-unlock:hover{background:rgba(16,217,160,0.22)}
 .btn-muted{background:rgba(255,255,255,0.04);color:var(--muted2);border:1px solid var(--border2);cursor:not-allowed;opacity:0.75}
+.btn-profile{background:rgba(251,191,36,0.1);color:var(--yellow);border:1px solid rgba(251,191,36,0.25)}
+.btn-profile:hover{background:rgba(251,191,36,0.2)}
+
+.profile-view-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.profile-view-avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;border:1px solid var(--border2);background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--cream2);flex-shrink:0}
+.profile-view-meta{display:flex;flex-wrap:wrap;gap:6px}
+.profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.profile-field{border:1px solid var(--border2);border-radius:10px;padding:10px;background:rgba(255,255,255,0.02)}
+.profile-field.full{grid-column:1/-1}
+.profile-field .k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.profile-field .v{font-size:12px;color:var(--cream2);word-break:break-word;line-height:1.55}
+.profile-field .v.empty{color:var(--muted)}
+
+@media(max-width:560px){
+  .profile-grid{grid-template-columns:1fr}
+  .user-actions{grid-template-columns:1fr}
+}
 
 @media(max-width:500px){
   .user-actions{grid-template-columns:1fr}
@@ -400,6 +418,68 @@ function modal(html){
 }
 function closeModal(){document.getElementById("modal-overlay")?.remove()}
 function doLogout(){localStorage.clear();location.href="/auth_ui.html"}
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function profileValue(value){
+  const text = String(value ?? "").trim();
+  return text ? escapeHtml(text) : '<span class="v empty">Not provided</span>';
+}
+
+function getUserById(userId){
+  return allUsers.find(user => Number(user.id) === Number(userId)) || null;
+}
+
+function openUserProfile(userId){
+  const user = getUserById(userId);
+  if (!user) {
+    toast("User details not found","error");
+    return;
+  }
+
+  const profile = user.profile || {};
+  const displayName = (profile.display_name || user.username || "User").trim();
+  const initials = displayName.split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]?.toUpperCase()||"").join("") || "U";
+  const avatar = profile.photo_data
+    ? `<img class="profile-view-avatar" src="${escapeHtml(profile.photo_data)}" alt="${escapeHtml(displayName)}">`
+    : `<div class="profile-view-avatar">${escapeHtml(initials)}</div>`;
+  const roleBadge = user.role === "admin"
+    ? '<span class="badge badge-orange">👑 Admin</span>'
+    : '<span class="badge badge-blue">👤 Student</span>';
+  const statusBadge = user.is_active
+    ? '<span class="badge badge-green">✅ Active</span>'
+    : '<span class="badge badge-red">⛔ Blocked</span>';
+
+  modal(`<div class="modal-header"><h2>👤 User Profile</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="profile-view-top">
+      ${avatar}
+      <div>
+        <div style="font-size:15px;font-weight:600">${escapeHtml(displayName)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">@${escapeHtml(user.username || "")}</div>
+      </div>
+    </div>
+    <div class="profile-view-meta">${roleBadge}${statusBadge}</div>
+    <div class="profile-grid" style="margin-top:12px">
+      <div class="profile-field"><div class="k">Email</div><div class="v">${profileValue(profile.email || user.email)}</div></div>
+      <div class="profile-field"><div class="k">Phone</div><div class="v">${profileValue(profile.phone)}</div></div>
+      <div class="profile-field"><div class="k">Department</div><div class="v">${profileValue(profile.department)}</div></div>
+      <div class="profile-field"><div class="k">Semester</div><div class="v">${profileValue(profile.semester)}</div></div>
+      <div class="profile-field"><div class="k">Year</div><div class="v">${profileValue(profile.year)}</div></div>
+      <div class="profile-field"><div class="k">Roll Number</div><div class="v">${profileValue(profile.roll_number)}</div></div>
+      <div class="profile-field"><div class="k">Location</div><div class="v">${profileValue(profile.location)}</div></div>
+      <div class="profile-field"><div class="k">LinkedIn</div><div class="v">${profileValue(profile.linkedin)}</div></div>
+      <div class="profile-field full"><div class="k">Website</div><div class="v">${profileValue(profile.website)}</div></div>
+      <div class="profile-field full"><div class="k">Bio</div><div class="v">${profileValue(profile.bio)}</div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>`);
+}
 
 // ── DASHBOARD ──
 async function loadDashboard(){
@@ -835,13 +915,13 @@ function renderUsers(users){
       ? `<button class="btn btn-sm btn-muted" disabled title="Only main admin can change other admin roles">Role Locked</button>`
       : `<button class="btn btn-sm btn-role" onclick="toggleRole(${u.id},'${u.role}','${safeName}')">Change Role</button>`;
     return `<div class="user-card">
-      <div class="user-card-top">
+      <div class="user-card-top clickable" onclick="openUserProfile(${u.id})" title="View full profile">
         <div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div>
         <div><div class="user-name-line"><div class="user-card-name">${u.username}</div>${mainMarker}</div><div class="user-card-email" title="${u.email}">${u.email}</div></div>
       </div>
       <div class="user-meta">${rb}${pb}${sb}</div>
       <div class="user-card-footer">
-        <div class="user-actions">${roleBtn}${blockBtn}</div>
+        <div class="user-actions"><button class="btn btn-sm btn-profile" onclick="openUserProfile(${u.id})">Profile</button>${roleBtn}${blockBtn}</div>
       </div>
     </div>`;
   }).join("");
@@ -924,7 +1004,7 @@ function redrawUserCards(users){
     const roleBtn=lockedAdminControls
       ? `<button class="btn btn-sm btn-muted" disabled title="Only main admin can change other admin roles">Role Locked</button>`
       : `<button class="btn btn-sm btn-role" onclick="toggleRole(${u.id},'${u.role}','${safeName}')">Change Role</button>`;
-    return `<div class="user-card"><div class="user-card-top"><div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div><div><div class="user-name-line"><div class="user-card-name">${u.username}</div>${mainMarker}</div><div class="user-card-email">${u.email}</div></div></div><div class="user-meta">${rb}${pb}${sb}</div><div class="user-card-footer"><div class="user-actions">${roleBtn}${blockBtn}</div></div></div>`;
+    return `<div class="user-card"><div class="user-card-top clickable" onclick="openUserProfile(${u.id})" title="View full profile"><div class="user-avatar" style="background:${col}">${u.username.charAt(0).toUpperCase()}</div><div><div class="user-name-line"><div class="user-card-name">${u.username}</div>${mainMarker}</div><div class="user-card-email">${u.email}</div></div></div><div class="user-meta">${rb}${pb}${sb}</div><div class="user-card-footer"><div class="user-actions"><button class="btn btn-sm btn-profile" onclick="openUserProfile(${u.id})">Profile</button>${roleBtn}${blockBtn}</div></div></div>`;
   }).join("");
 }
 

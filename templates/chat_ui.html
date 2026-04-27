@@ -1174,9 +1174,8 @@ html,body{
         <div class="header-menu-section">
           <div class="header-menu-label">Chat Actions</div>
           <div class="tool-group" id="chat-action-tools">
-            <button id="toggle-select-btn" class="tool-action-btn" type="button" data-chat-action="toggle-select-mode">Enable Selection</button>
+            <button id="toggle-select-btn" class="tool-action-btn" type="button" data-chat-action="toggle-select-mode">Select Messages</button>
             <button class="tool-action-btn" type="button" data-chat-action="select-all">Select All</button>
-            <button class="tool-action-btn" type="button" data-chat-action="unselect-all">Clear Selection</button>
             <button class="tool-action-btn danger" type="button" data-chat-action="delete-selected">Delete Selected</button>
             <button class="tool-action-btn" type="button" data-chat-action="export-chat">Export</button>
             <button class="tool-action-btn danger" type="button" data-chat-action="clear-chat">Clear Chat</button>
@@ -1184,22 +1183,6 @@ html,body{
           </div>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div class="assistant-tools" id="assistant-tools">
-    <div class="tool-search-wrap">
-      <input id="chat-search-input" class="tool-search" type="text" placeholder="Search this conversation...">
-      <button id="clear-search-btn" class="tool-clear-btn" type="button">Clear</button>
-    </div>
-
-    <div class="tool-grid">
-      <div class="tool-group compact" id="search-role-filters">
-        <button class="tool-role-btn active" type="button" data-search-role="all">All</button>
-        <button class="tool-role-btn" type="button" data-search-role="user">Student</button>
-        <button class="tool-role-btn" type="button" data-search-role="bot">Assistant</button>
-      </div>
-      <span id="search-result-count" class="search-summary">Showing all messages</span>
     </div>
   </div>
 
@@ -1252,11 +1235,6 @@ const conversationList = document.getElementById("conversation-list");
 const editProfileBtn = document.getElementById("edit-profile-btn");
 const chatOptionsBtn = document.getElementById("chat-options-btn");
 const chatOptionsMenu = document.getElementById("chat-options-menu");
-const chatSearchInput = document.getElementById("chat-search-input");
-const clearSearchBtn = document.getElementById("clear-search-btn");
-const searchResultCount = document.getElementById("search-result-count");
-const assistantTools = document.getElementById("assistant-tools");
-const searchRoleFilters = document.getElementById("search-role-filters");
 const selectedCountChip = document.getElementById("selected-count-chip");
 const toggleSelectBtn = document.getElementById("toggle-select-btn");
 const messageContextMenu = document.getElementById("message-context-menu");
@@ -1302,18 +1280,6 @@ editProfileBtn?.addEventListener("click", openProfileModal);
 chatOptionsBtn?.addEventListener("click", event => {
   event.stopPropagation();
   toggleChatOptionsMenu();
-});
-chatSearchInput?.addEventListener("input", () => {
-  loadConversation(state.currentConversationId, { preserveSelection: true });
-});
-clearSearchBtn?.addEventListener("click", () => {
-  if (chatSearchInput) chatSearchInput.value = "";
-  loadConversation(state.currentConversationId, { preserveSelection: true });
-});
-searchRoleFilters?.addEventListener("click", event => {
-  const button = event.target.closest("[data-search-role]");
-  if (!button) return;
-  setSearchRole(button.getAttribute("data-search-role") || "all");
 });
 chatOptionsMenu?.addEventListener("click", handleChatOptionsClick);
 messageContextMenu?.addEventListener("click", handleMessageContextMenuClick);
@@ -1955,34 +1921,15 @@ function clearSelectedMessages() {
 }
 
 function getCurrentSearchQuery() {
-  return String(chatSearchInput?.value || "").trim().toLowerCase();
+  return "";
 }
 
 function updateSearchSummary(visibleCount, totalCount, query, roleFilter) {
-  if (!searchResultCount) return;
-
-  if (!query && roleFilter === "all") {
-    searchResultCount.textContent = `Showing all ${totalCount} messages`;
-    return;
-  }
-
-  const scopeLabel = roleFilter === "all" ? "messages" : `${roleFilter} messages`;
-  if (!visibleCount) {
-    searchResultCount.textContent = `No ${scopeLabel} found`;
-    return;
-  }
-
-  searchResultCount.textContent = `${visibleCount} ${scopeLabel} shown`;
+  // Search summary is intentionally hidden for a cleaner chat UI.
 }
 
 function setSearchRole(role) {
-  const allowed = new Set(["all", "user", "bot"]);
-  state.searchRole = allowed.has(role) ? role : "all";
-
-  document.querySelectorAll("[data-search-role]").forEach(button => {
-    button.classList.toggle("active", button.getAttribute("data-search-role") === state.searchRole);
-  });
-
+  state.searchRole = "all";
   loadConversation(state.currentConversationId, { preserveSelection: true });
 }
 
@@ -1998,7 +1945,7 @@ function updateSelectionBadge() {
   }
 
   if (toggleSelectBtn) {
-    toggleSelectBtn.textContent = state.selectMode ? "Disable Selection" : "Enable Selection";
+    toggleSelectBtn.textContent = state.selectMode ? "Done Selecting" : "Select Messages";
   }
 }
 
@@ -2105,9 +2052,6 @@ function handleChatOptionsClick(event) {
     case "select-all":
       setSelectMode(true);
       selectAllMessagesInCurrentChat();
-      break;
-    case "unselect-all":
-      unselectAllMessagesInCurrentChat();
       break;
     case "delete-selected":
       deleteSelectedMessages();

@@ -15,7 +15,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text, func
 from pydantic import BaseModel
 from jose import JWTError, jwt
@@ -209,6 +209,18 @@ def _serialize_profile(profile: UserProfile | None, user: User) -> dict:
         "photo_mime": profile.photo_mime or "",
         "email": user.email,
         "username": user.username,
+    }
+
+
+def _serialize_admin_user(user: User) -> dict:
+    profile_data = _serialize_profile(getattr(user, "profile", None), user)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": _normalize_role_value(user.role),
+        "is_active": bool(user.is_active),
+        "profile": profile_data,
     }
 
 
@@ -936,7 +948,8 @@ def audit_logs(db: Session = Depends(get_db), admin: User = Depends(get_admin)):
 # ================================================================
 @app.get("/admin/users")
 def get_users(db: Session = Depends(get_db), admin: User = Depends(get_admin)):
-    return db.query(User).order_by(User.id).all()
+    users = db.query(User).options(joinedload(User.profile)).order_by(User.id).all()
+    return [_serialize_admin_user(user) for user in users]
 
 
 @app.patch("/admin/users/{user_id}/role")
