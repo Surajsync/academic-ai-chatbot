@@ -4,7 +4,6 @@ from pydantic import BaseModel
 from datetime import datetime
 from backend.utils.helpers import get_db, get_current_user
 from backend.services.chatbot_service import get_response
-from backend.database.models import AdminMessage, User
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
