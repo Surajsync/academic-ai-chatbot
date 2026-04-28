@@ -23,11 +23,6 @@ class AdminMessageResponse(BaseModel):
         from_attributes = True
 
 
-class ContactAdminRequest(BaseModel):
-    subject: str
-    message: str
-
-
 @router.post("/chat")
 def chat(data: ChatRequest):
     result = get_response(data.message)
@@ -40,49 +35,5 @@ def chat(data: ChatRequest):
 
 
 # ================= USER MESSAGING =================
-@router.get("/messages/admin")
-def get_admin_messages(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """User gets all messages from admin"""
-    
-    messages = db.query(AdminMessage).filter(
-        AdminMessage.recipient_id == current_user.id
-    ).order_by(AdminMessage.created_at.desc()).all()
-    
-    return [AdminMessageResponse.from_orm(msg) for msg in messages]
-
-
-@router.post("/messages/contact-admin")
-def contact_admin(
-    data: ContactAdminRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """User sends a contact message to admin"""
-    
-    # Get first admin user
-    admin = db.query(User).filter(User.role == "admin").first()
-    
-    if not admin:
-        raise HTTPException(status_code=500, detail="No admin available")
-    
-    # Create message from user to admin
-    message = AdminMessage(
-        sender_id=current_user.id,
-        recipient_id=admin.id,
-        content=f"Subject: {data.subject}\n\n{data.message}",
-        is_read=False
-    )
-    
-    db.add(message)
-    db.commit()
-    db.refresh(message)
-    
-    return {
-        "success": True,
-        "message": "Your message has been sent to the admin",
-        "message_id": message.id
-    }
+# user-facing admin messaging endpoints removed
 
