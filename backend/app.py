@@ -22,7 +22,7 @@ from jose import JWTError, jwt
 
 from backend.config import settings
 from backend.database.database import SessionLocal, engine
-from backend.database.models import Base, User, UserProfile, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken, Announcement
+from backend.database.models import Base, User, UserProfile, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken, Announcement, AdminMessage
 from backend.security.security import hash_password, verify_password
 from backend.services.auth_service import create_access_token
 from backend.services.chatbot_service import generate_reply_with_source, get_intent_guided_suggestions
@@ -1293,6 +1293,154 @@ def update_user_status(
     db.commit()
 
     return {"message": f"User {'unblocked' if data.is_active else 'blocked'} successfully"}
+
+
+# ================================================================
+#  ADMIN MESSAGING
+# ================================================================
+class SendMessageRequest(BaseModel):
+    recipient_id: int
+    content: str
+
+
+class MessageResponse(BaseModel):
+    id: int
+    sender_id: int
+    recipient_id: int
+    content: str
+    is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@app.post("/admin/messages/send")
+def send_admin_message(
+    data: SendMessageRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin)
+):
+    """Admin sends a message to a user"""
+    
+    # Verify recipient exists
+    recipient = db.query(User).filter(User.id == data.recipient_id).first()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Create and save message
+    message = AdminMessage(
+        sender_id=admin.id,
+        recipient_id=data.recipient_id,
+        content=data.content,
+        is_read=False
+    )
+    
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    
+    return MessageResponse.from_orm(message)
+
+
+@app.get("/admin/messages/users")
+def get_message_users(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin)
+):
+    """Get list of all users with message history for admin"""
+    
+    # Get all active users (for composing new messages)
+    all_users = db.query(User).filter(User.role == "user", User.is_active == True).all()
+    
+    user_list = []
+    for user in all_users:
+        last_message = db.query(AdminMessage).filter(
+            AdminMessage.recipient_id == user.id,
+            AdminMessage.sender_id == admin.id
+        ).order_by(AdminMessage.created_at.desc()).first()
+        
+        user_list.append({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "display_name": user.profile.display_name if user.profile else user.username,
+            "last_message": last_message.content[:50] if last_message else None,
+            "last_message_time": last_message.created_at if last_message else None
+        })
+    
+    return sorted(user_list, key=lambda x: x['last_message_time'] or datetime.min, reverse=True)
+
+
+@app.get("/admin/messages/user/{user_id}")
+def get_user_messages(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin)
+):
+    """Get all messages between admin and a specific user"""
+    
+    messages = db.query(AdminMessage).filter(
+        AdminMessage.recipient_id == user_id,
+        AdminMessage.sender_id == admin.id
+    ).order_by(AdminMessage.created_at.asc()).all()
+    
+    return [MessageResponse.from_orm(msg) for msg in messages]
+
+
+# ================================================================
+#  USER MESSAGING
+# ================================================================
+class ContactAdminRequest(BaseModel):
+    subject: str
+    message: str
+
+
+@app.get("/api/messages/admin")
+def get_admin_messages(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """User gets all messages from admin"""
+    
+    messages = db.query(AdminMessage).filter(
+        AdminMessage.recipient_id == current_user.id
+    ).order_by(AdminMessage.created_at.desc()).all()
+    
+    return [MessageResponse.from_orm(msg) for msg in messages]
+
+
+@app.post("/api/messages/contact-admin")
+def contact_admin(
+    data: ContactAdminRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """User sends a contact message to admin"""
+    
+    # Get first admin user
+    admin = db.query(User).filter(User.role == "admin").first()
+    
+    if not admin:
+        raise HTTPException(status_code=500, detail="No admin available")
+    
+    # Create message from user to admin
+    message = AdminMessage(
+        sender_id=current_user.id,
+        recipient_id=admin.id,
+        content=f"Subject: {data.subject}\n\n{data.message}",
+        is_read=False
+    )
+    
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    
+    return {
+        "success": True,
+        "message": "Your message has been sent to the admin",
+        "message_id": message.id
+    }
 
 
 # ================================================================
