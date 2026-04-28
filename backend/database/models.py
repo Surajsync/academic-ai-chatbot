@@ -128,22 +128,6 @@ class Announcement(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-# ================= ADMIN MESSAGES =================
-class AdminMessage(Base):
-    __tablename__ = "admin_messages"
-
-    id = Column(Integer, primary_key=True, index=True)
-    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Admin user ID
-    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # User ID
-    content = Column(Text, nullable=False)
-    is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-
-    sender = relationship("User", foreign_keys=[sender_id], backref="sent_messages")
-    recipient = relationship("User", foreign_keys=[recipient_id], backref="received_messages")
-
-
 # ================= PASSWORD RESET TOKENS =================
 
 class PasswordResetToken(Base):

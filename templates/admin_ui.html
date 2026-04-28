@@ -246,7 +246,6 @@ tr:hover td{background:rgba(255,255,255,0.015)}
   <div class="nav-group-label">Chatbot</div>
   <button class="nav-item" id="nav-faqs" onclick="goto('faqs')"><span class="nav-icon">🧠</span><span>Knowledge Base</span></button>
   <button class="nav-item" id="nav-announcements" onclick="goto('announcements')"><span class="nav-icon">📢</span><span>Announcements</span></button>
-  <button class="nav-item" id="nav-messages" onclick="goto('messages')"><span class="nav-icon">💬</span><span>Messages</span></button>
   <button class="nav-item" id="nav-failed" onclick="goto('failed')"><span class="nav-icon">⚠️</span><span>Failed Queries</span><span class="nav-badge" id="failed-badge" style="display:none">0</span></button>
   <div class="nav-group-label">People</div>
   <button class="nav-item" id="nav-users" onclick="goto('users')"><span class="nav-icon">👥</span><span>Users</span></button>
@@ -394,15 +393,15 @@ function goto(page){
   document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
   const btn=document.getElementById("nav-"+page);
   if(btn) btn.classList.add("active");
-  const titles={dashboard:"Dashboard",faqs:"Knowledge Base",announcements:"Announcements",messages:"Messages",failed:"Failed Queries",users:"Users",audit:"Audit Logs",help:"Help & Guide"};
+  const titles={dashboard:"Dashboard",faqs:"Knowledge Base",announcements:"Announcements",failed:"Failed Queries",users:"Users",audit:"Audit Logs",help:"Help & Guide"};
   document.getElementById("page-title").textContent  = titles[page]||page;
   document.getElementById("breadcrumb").textContent  = "Home / "+(titles[page]||page);
-  const fn={dashboard:loadDashboard,faqs:loadFAQs,announcements:loadAnnouncements,messages:loadMessages,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
+  const fn={dashboard:loadDashboard,faqs:loadFAQs,announcements:loadAnnouncements,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
   if(fn[page]) fn[page]();
 }
 
 function refreshCurrentSection(){
-  const fn={dashboard:loadDashboard,faqs:loadFAQs,announcements:loadAnnouncements,messages:loadMessages,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
+  const fn={dashboard:loadDashboard,faqs:loadFAQs,announcements:loadAnnouncements,failed:loadFailed,users:loadUsers,audit:loadAudit,help:loadHelp};
   if(fn[activeSection]) fn[activeSection]();
 }
 
@@ -968,177 +967,6 @@ async function confirmDeleteAnnouncement(id){
     loadAnnouncements();
   }catch(e){toast("Delete failed","error")}
   finally{finishMutation()}
-}
-
-// ── MESSAGES ──
-let messageUsers = [];
-let currentMessageUserId = null;
-let currentUserMessages = [];
-
-async function loadMessages(){
-  document.getElementById("content").innerHTML = `
-    <div style="display:flex;gap:16px;height:calc(100vh-120px)">
-      <div style="width:300px;border-right:1px solid var(--border2)">
-        <div style="padding:16px;border-bottom:1px solid var(--border2)">
-          <input type="text" id="user-search-input" placeholder="Search users..." style="width:100%;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--cream);font-size:13px" onkeyup="filterMessageUsers()">
-        </div>
-        <div id="users-list" style="overflow-y:auto;height:calc(100% - 60px)"></div>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column">
-        <div id="message-view" style="display:none;height:100%;background:var(--card);border:1px solid var(--border2);border-radius:14px;overflow:hidden">
-          <div id="message-header" style="padding:16px;border-bottom:1px solid var(--border2);background:var(--card2)"></div>
-          <div id="message-content" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px"></div>
-          <div style="padding:16px;border-top:1px solid var(--border2);background:var(--card2)">
-            <div style="display:flex;gap:8px">
-              <input type="text" id="message-input" placeholder="Type your message..." style="flex:1;padding:10px;border:1px solid var(--border2);border-radius:8px;background:rgba(255,255,255,0.04);color:var(--cream);font-size:13px" onkeypress="handleMessageKeypress(event)">
-              <button onclick="sendMessageToUser()" style="padding:10px 16px;background:var(--saffron);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">Send</button>
-            </div>
-          </div>
-        </div>
-        <div id="no-user-selected" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">
-          <div style="text-align:center">
-            <div style="font-size:32px;margin-bottom:10px">💬</div>
-            <div>Select a user to view or send messages</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  try {
-    const res = await fetch(`${API}/admin/messages/users`, { headers: H() });
-    if (!res.ok) throw new Error("Failed to load users");
-    messageUsers = await res.json();
-    renderMessageUsersList();
-  } catch (e) {
-    toast("Failed to load messages: " + e.message, "error");
-  }
-}
-
-function filterMessageUsers() {
-  const query = document.getElementById("user-search-input")?.value.toLowerCase() || "";
-  const filtered = messageUsers.filter(u => 
-    u.username.toLowerCase().includes(query) || 
-    u.email.toLowerCase().includes(query) ||
-    (u.display_name || "").toLowerCase().includes(query)
-  );
-  renderMessageUsersList(filtered);
-}
-
-function renderMessageUsersList(users = messageUsers) {
-  const list = document.getElementById("users-list");
-  if (!list) return;
-  
-  if (users.length === 0) {
-    list.innerHTML = `<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">No users with messages</div>`;
-    return;
-  }
-  
-  list.innerHTML = users.map(user => `
-    <div onclick="selectMessageUser(${user.id})" style="padding:12px;border-bottom:1px solid var(--border2);cursor:pointer;${currentMessageUserId === user.id ? 'background:var(--saf-glow);border-left:3px solid var(--saffron)' : 'hover {background:rgba(240,144,13,0.08)'};padding-left:${currentMessageUserId === user.id ? '9px' : '12px'}" class="${currentMessageUserId === user.id ? 'active' : ''}">
-      <div style="font-weight:600;color:var(--cream);font-size:13px">${escapeHtml(user.display_name || user.username)}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${escapeHtml(user.email)}</div>
-      ${user.last_message ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(user.last_message)}</div>` : ''}
-    </div>
-  `).join("");
-}
-
-async function selectMessageUser(userId) {
-  currentMessageUserId = userId;
-  document.getElementById("no-user-selected").style.display = "none";
-  document.getElementById("message-view").style.display = "flex";
-  
-  const user = messageUsers.find(u => u.id === userId);
-  if (user) {
-    document.getElementById("message-header").innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-weight:600;color:var(--cream);font-size:14px">${escapeHtml(user.display_name || user.username)}</div>
-          <div style="font-size:11px;color:var(--muted)">${escapeHtml(user.email)}</div>
-        </div>
-      </div>
-    `;
-  }
-  
-  try {
-    const res = await fetch(`${API}/admin/messages/user/${userId}`, { headers: H() });
-    if (!res.ok) throw new Error("Failed to load messages");
-    currentUserMessages = await res.json();
-    renderUserMessages();
-  } catch (e) {
-    toast("Failed to load messages: " + e.message, "error");
-  }
-  
-  renderMessageUsersList();
-}
-
-function renderUserMessages() {
-  const content = document.getElementById("message-content");
-  if (!content) return;
-  
-  if (currentUserMessages.length === 0) {
-    content.innerHTML = `<div style="text-align:center;color:var(--muted);margin:auto">No messages yet</div>`;
-    return;
-  }
-  
-  content.innerHTML = currentUserMessages.map(msg => `
-    <div style="margin-bottom:10px;display:flex;justify-content:flex-end">
-      <div style="background:var(--saf-glow);padding:10px 12px;border-radius:10px;max-width:70%;word-wrap:break-word">
-        <div style="font-size:13px;color:var(--cream)">${escapeHtml(msg.content)}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">${new Date(msg.created_at).toLocaleString()}</div>
-      </div>
-    </div>
-  `).join("");
-  
-  content.scrollTop = content.scrollHeight;
-}
-
-async function sendMessageToUser() {
-  if (!currentMessageUserId) {
-    toast("Select a user first", "error");
-    return;
-  }
-  
-  const input = document.getElementById("message-input");
-  const content = (input?.value || "").trim();
-  
-  if (!content) {
-    toast("Message cannot be empty", "error");
-    return;
-  }
-  
-  if (!canRunMutation()) return;
-  
-  try {
-    const res = await fetch(`${API}/admin/messages/send`, {
-      method: "POST",
-      headers: H(),
-      body: JSON.stringify({
-        recipient_id: currentMessageUserId,
-        content: content
-      })
-    });
-    
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.detail || "Failed to send message");
-    }
-    
-    if (input) input.value = "";
-    toast("Message sent");
-    selectMessageUser(currentMessageUserId);
-  } catch (e) {
-    toast("Send failed: " + e.message, "error");
-  } finally {
-    finishMutation();
-  }
-}
-
-function handleMessageKeypress(e) {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessageToUser();
-  }
 }
 
 // ── FAILED QUERIES ──

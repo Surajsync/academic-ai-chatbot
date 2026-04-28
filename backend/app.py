@@ -1322,24 +1322,21 @@ def send_admin_message(
     admin: User = Depends(get_admin)
 ):
     """Admin sends a message to a user"""
-    
-    # Verify recipient exists
     recipient = db.query(User).filter(User.id == data.recipient_id).first()
     if not recipient:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    # Create and save message
+
     message = AdminMessage(
         sender_id=admin.id,
         recipient_id=data.recipient_id,
         content=data.content,
-        is_read=False
+        is_read=False,
     )
-    
+
     db.add(message)
     db.commit()
     db.refresh(message)
-    
+
     return MessageResponse.from_orm(message)
 
 
@@ -1349,26 +1346,24 @@ def get_message_users(
     admin: User = Depends(get_admin)
 ):
     """Get list of all users with message history for admin"""
-    
-    # Get all active users (for composing new messages)
     all_users = db.query(User).filter(User.role == "user", User.is_active == True).all()
-    
+
     user_list = []
     for user in all_users:
         last_message = db.query(AdminMessage).filter(
             AdminMessage.recipient_id == user.id,
-            AdminMessage.sender_id == admin.id
+            AdminMessage.sender_id == admin.id,
         ).order_by(AdminMessage.created_at.desc()).first()
-        
+
         user_list.append({
             "id": user.id,
             "username": user.username,
             "email": user.email,
             "display_name": user.profile.display_name if user.profile else user.username,
             "last_message": last_message.content[:50] if last_message else None,
-            "last_message_time": last_message.created_at if last_message else None
+            "last_message_time": last_message.created_at if last_message else None,
         })
-    
+
     return sorted(user_list, key=lambda x: x['last_message_time'] or datetime.min, reverse=True)
 
 
@@ -1379,19 +1374,63 @@ def get_user_messages(
     admin: User = Depends(get_admin)
 ):
     """Get all messages between admin and a specific user"""
-    
     messages = db.query(AdminMessage).filter(
         AdminMessage.recipient_id == user_id,
-        AdminMessage.sender_id == admin.id
+        AdminMessage.sender_id == admin.id,
     ).order_by(AdminMessage.created_at.asc()).all()
-    
+
     return [MessageResponse.from_orm(msg) for msg in messages]
 
 
 # ================================================================
 #  USER MESSAGING
 # ================================================================
-# User-facing admin messaging endpoints removed (contact/view admin messages)
+class ContactAdminRequest(BaseModel):
+    subject: str
+    message: str
+
+
+@app.get("/api/messages/admin")
+def get_admin_messages(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """User gets all messages from admin"""
+    messages = db.query(AdminMessage).filter(
+        AdminMessage.recipient_id == current_user.id
+    ).order_by(AdminMessage.created_at.desc()).all()
+
+    return [MessageResponse.from_orm(msg) for msg in messages]
+
+
+@app.post("/api/messages/contact-admin")
+def contact_admin(
+    data: ContactAdminRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """User sends a contact message to admin"""
+    admin = db.query(User).filter(User.role == "admin").first()
+
+    if not admin:
+        raise HTTPException(status_code=500, detail="No admin available")
+
+    message = AdminMessage(
+        sender_id=current_user.id,
+        recipient_id=admin.id,
+        content=f"Subject: {data.subject}\n\n{data.message}",
+        is_read=False,
+    )
+
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    return {
+        "success": True,
+        "message": "Your message has been sent to the admin",
+        "message_id": message.id,
+    }
 
 
 # ================================================================
