@@ -22,7 +22,7 @@ from jose import JWTError, jwt
 
 from backend.config import settings
 from backend.database.database import SessionLocal, engine
-from backend.database.models import Base, User, UserProfile, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken, Announcement, AdminMessage
+from backend.database.models import Base, User, UserProfile, Conversation, Message, FAQ, FailedQuery, AuditLog, SystemSetting, PasswordResetToken, Announcement
 from backend.security.security import hash_password, verify_password
 from backend.services.auth_service import create_access_token
 from backend.services.chatbot_service import generate_reply_with_source, get_intent_guided_suggestions
