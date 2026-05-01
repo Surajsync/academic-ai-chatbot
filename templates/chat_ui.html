@@ -1086,28 +1086,71 @@ html,body{
 
 /* Input */
 .chat-input{
-  display:flex;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
   gap:12px;
+  align-items:end;
+  padding:14px;
+  border:1px solid var(--border-subtle);
+  border-radius:18px;
+  background:linear-gradient(180deg,rgba(26,34,53,0.72),rgba(14,17,23,0.92));
+  box-shadow:0 14px 34px rgba(0,0,0,0.26);
 }
 
 .chat-input input{
   flex:1;
-  height:50px;
+  min-height:50px;
+  height:auto;
   border-radius:12px;
   border:1px solid var(--border);
   background:var(--ink2);
-  padding:0 16px;
+  padding:14px 16px;
   color:white;
 }
 
+.chat-input textarea{
+  flex:1;
+  min-height:50px;
+  height:50px;
+  max-height:170px;
+  resize:none;
+  overflow-y:auto;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:var(--ink2);
+  padding:14px 16px;
+  color:white;
+  font:inherit;
+  line-height:1.45;
+}
+
+.chat-input textarea:focus,
+.chat-input input:focus{
+  outline:none;
+  border-color:rgba(245,169,58,0.72);
+  box-shadow:0 0 0 3px rgba(232,130,12,0.12);
+}
+
+.chat-input-actions{
+  display:flex;
+  gap:10px;
+  align-items:stretch;
+}
+
 .chat-input button{
-  width:120px;
+  min-width:112px;
+  height:50px;
   border-radius:12px;
   border:none;
   background:linear-gradient(135deg,var(--saffron),var(--saffron-pale));
   color:white;
   font-weight:500;
+  padding:0 16px;
   cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
 }
 
 .chat-input button:disabled{
@@ -1117,7 +1160,6 @@ html,body{
 
 #stop-btn{
   display:none;
-  width:120px;
   background:rgba(244,63,94,0.14);
   border:1px solid rgba(244,63,94,0.3);
   color:#ffd7dd;
@@ -1125,6 +1167,14 @@ html,body{
 
 #stop-btn:hover{
   background:rgba(244,63,94,0.22);
+}
+
+.chat-input-hint{
+  margin-top:10px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.4;
+  padding-left:2px;
 }
 /* ━━━━━━━━━ CONVERSATION ITEM━━━━━━━━━ */
 .conversation-item{
@@ -1329,14 +1379,23 @@ html,body{
   }
 
   .chat-input{
-    flex-direction:column;
+    grid-template-columns:1fr;
     gap:10px;
+    padding:12px;
   }
 
-  .chat-input input,
-  .chat-input button,
-  #stop-btn{
+  .chat-input textarea,
+  .chat-input input{
     width:100%;
+  }
+
+  .chat-input-actions{
+    width:100%;
+  }
+
+  .chat-input-actions button{
+    flex:1;
+    min-width:0;
   }
 
   .new-chat{
@@ -1462,10 +1521,14 @@ html,body{
   <div class="chat-box" id="chat-box"></div>
 
   <div class="chat-input">
-    <input type="text" id="user-input" placeholder="Type your message...">
-    <button id="send-btn">Send</button>
-    <button id="stop-btn" type="button">Stop</button>
+    <textarea id="user-input" rows="1" placeholder="Type your message..."></textarea>
+    <div class="chat-input-actions">
+      <button id="send-btn" type="button">Send</button>
+      <button id="stop-btn" type="button">Stop</button>
+    </div>
   </div>
+
+  <div class="chat-input-hint">Press Enter to send. Use Shift+Enter for a new line.</div>
 
 </div>
 <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
@@ -1610,6 +1673,15 @@ window.addEventListener("resize", () => {
   }
 });
 closeMobileSidebar();
+
+function adjustComposerHeight() {
+  if (!input) return;
+  input.style.height = "auto";
+  const nextHeight = Math.min(input.scrollHeight, 170);
+  input.style.height = `${Math.max(nextHeight, 50)}px`;
+}
+
+adjustComposerHeight();
 
 // ================= LOAD CONVERSATIONS FROM BACKEND =================
 async function loadConversationsFromBackend() {
@@ -2180,6 +2252,7 @@ function stopAssistantWaitState() {
   input.disabled = false;
   input.placeholder = "Type your message...";
   if (stopBtn) stopBtn.style.display = "none";
+  adjustComposerHeight();
 }
 
 function cancelAssistantReply() {
@@ -3109,6 +3182,7 @@ async function sendMessage(prefilledMessage = "") {
     loadConversation(state.currentConversationId);
 
     input.value = "";
+    adjustComposerHeight();
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: "smooth" });
 
     const token = localStorage.getItem("access_token");
@@ -3364,7 +3438,16 @@ chatBox.addEventListener("click", event => {
 });
 
 input.addEventListener("keydown", e => {
-    if (e.key === "Enter") sendMessage();
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+});
+
+input.addEventListener("input", adjustComposerHeight);
+
+input.addEventListener("paste", () => {
+  window.requestAnimationFrame(adjustComposerHeight);
 });
 
 document.querySelector(".new-chat")
