@@ -1093,7 +1093,7 @@ html,body{
 
 #stop-btn{
   display:none;
-  width:95px;
+  width:120px;
   background:rgba(244,63,94,0.14);
   border:1px solid rgba(244,63,94,0.3);
   color:#ffd7dd;
@@ -3112,7 +3112,7 @@ conversationList.addEventListener("click", function (e) {
 });
 
 // ================= EVENTS =================
-sendBtn.addEventListener("click", sendMessage);
+sendBtn.addEventListener("click", () => sendMessage());
 stopBtn?.addEventListener("click", cancelAssistantReply);
 
 chatBox.addEventListener("click", event => {
