@@ -1496,8 +1496,6 @@ html,body{
         <div class="header-menu-section">
           <div class="header-menu-label">Chat Actions</div>
           <div class="tool-group" id="chat-action-tools">
-            <button id="contact-admin-btn" class="tool-action-btn" type="button" data-chat-action="contact-admin">Contact Admin</button>
-            <button id="view-admin-messages-btn" class="tool-action-btn" type="button" data-chat-action="view-messages">View Messages</button>
             <button id="toggle-select-btn" class="tool-action-btn" type="button" data-chat-action="toggle-select-mode">Select Messages</button>
             <button class="tool-action-btn" type="button" data-chat-action="select-all">Select All</button>
             <button class="tool-action-btn danger" type="button" data-chat-action="delete-selected">Delete Selected</button>
@@ -1527,8 +1525,6 @@ html,body{
       <button id="stop-btn" type="button">Stop</button>
     </div>
   </div>
-
-  <div class="chat-input-hint">Press Enter to send. Use Shift+Enter for a new line.</div>
 
 </div>
 <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
@@ -3602,19 +3598,6 @@ function openAdminMessagesModal() {
 function closeAdminMessagesModal() {
   document.getElementById("admin-messages-modal")?.remove();
 }
-
-// Add event listeners for contact admin and view messages buttons
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("contact-admin-btn")?.addEventListener("click", () => {
-    openContactAdminModal();
-    closeChatOptionsMenu();
-  });
-
-  document.getElementById("view-admin-messages-btn")?.addEventListener("click", () => {
-    openAdminMessagesModal();
-    closeChatOptionsMenu();
-  });
-});
 
 // ================= INITIAL LOAD =================
 // Load conversations from backend first
