@@ -207,6 +207,74 @@ body{
 .form-panel{display:none;}
 .form-panel.active{display:block;}
 
+@media (max-width: 640px){
+  html,body{
+    height:auto;
+    min-height:100%;
+    overflow-x:hidden;
+    overflow-y:auto;
+  }
+
+  body{
+    min-height:100dvh;
+  }
+
+  .app{
+    height:auto;
+    min-height:100dvh;
+    padding:12px;
+  }
+
+  .auth-wrap{
+    max-width:100%;
+  }
+
+  .auth-panel{
+    padding:28px 20px 24px;
+    border-radius:20px;
+  }
+
+  .logo-ring{
+    width:78px;
+    height:78px;
+  }
+
+  .college-name h1{
+    font-size:18px;
+  }
+
+  .college-name .tagline{
+    letter-spacing:2px;
+  }
+
+  .auth-tabs{
+    flex-direction:column;
+  }
+
+  .tab-btn{
+    width:100%;
+  }
+
+  .field input,
+  .field select{
+    font-size:16px;
+  }
+
+  .btn-submit{
+    padding:13px;
+  }
+}
+
+@media (max-width: 420px){
+  .auth-panel{
+    padding:24px 16px 22px;
+  }
+
+  .college-name h1{
+    font-size:17px;
+  }
+}
+
 </style>
 </head>
 <body>

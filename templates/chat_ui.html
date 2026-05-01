@@ -727,6 +727,30 @@ html,body{
   margin-bottom:0px;
 }
 
+.mobile-sidebar-toggle{
+  display:none;
+  width:44px;
+  height:44px;
+  border-radius:12px;
+  border:1px solid var(--border-subtle);
+  background:rgba(255,255,255,0.06);
+  color:var(--cream);
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  font-size:18px;
+  line-height:1;
+  flex-shrink:0;
+}
+
+.mobile-sidebar-toggle:hover{
+  background:rgba(232,130,12,0.14);
+}
+
+.sidebar-backdrop{
+  display:none;
+}
+
 /* Logo ring (same as auth page) */
 .logo-ring{
   position:relative;
@@ -1208,6 +1232,137 @@ html,body{
   font-family:'Outfit',sans-serif;
 }
 
+@media (max-width: 768px){
+  html,body{
+    height:auto;
+    min-height:100%;
+    overflow-x:hidden;
+  }
+
+  .app{
+    height:auto;
+    min-height:100dvh;
+    position:relative;
+    overflow:hidden;
+  }
+
+  .sidebar{
+    position:fixed;
+    inset:0 auto 0 0;
+    width:min(84vw, 300px);
+    transform:translateX(-102%);
+    transition:transform 0.28s ease;
+    z-index:540;
+    box-shadow:0 24px 60px rgba(0,0,0,0.5);
+  }
+
+  .app.sidebar-open .sidebar{
+    transform:translateX(0);
+  }
+
+  .sidebar-backdrop{
+    display:block;
+    position:fixed;
+    inset:0;
+    background:rgba(3,7,18,0.58);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.28s ease;
+    z-index:530;
+  }
+
+  .app.sidebar-open .sidebar-backdrop{
+    opacity:1;
+    pointer-events:auto;
+  }
+
+  .mobile-sidebar-toggle{
+    display:inline-flex;
+  }
+
+  .main{
+    width:100%;
+    min-width:0;
+    padding:14px;
+  }
+
+  .header{
+    flex-wrap:wrap;
+    align-items:flex-start;
+    gap:10px;
+  }
+
+  .header-text{
+    min-width:0;
+    flex:1;
+  }
+
+  .header-text h1{
+    font-size:22px;
+    line-height:1.15;
+  }
+
+  .header-text p{
+    font-size:15px;
+  }
+
+  .logo-ring{
+    width:64px;
+    height:64px;
+  }
+
+  .header-menu-wrap{
+    margin-left:auto;
+  }
+
+  .announcement-banner{
+    flex-direction:column;
+  }
+
+  .chat-box{
+    padding:26px 12px;
+  }
+
+  .message{
+    max-width:92%;
+    font-size:13px;
+  }
+
+  .chat-input{
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .chat-input input,
+  .chat-input button,
+  #stop-btn{
+    width:100%;
+  }
+
+  .new-chat{
+    padding:14px 0;
+  }
+}
+
+@media (max-width: 480px){
+  .main{
+    padding:10px;
+  }
+
+  .header-text h1{
+    font-size:19px;
+  }
+
+  .header-menu-dropdown{
+    width:min(290px, calc(100vw - 20px));
+  }
+
+  .hero-welcome{
+    font-size:20px;
+    padding:32px 18px;
+  }
+}
+
 
 </style>
 </head>
@@ -1255,6 +1410,7 @@ html,body{
 <div class="main">
 
   <div class="header">
+    <button id="mobile-sidebar-toggle" class="mobile-sidebar-toggle" type="button" aria-label="Open sidebar" aria-expanded="false">☰</button>
     <div class="logo-ring">
       <div class="logo-img">
         <img src="/static/Images/logo.png" alt="REC Bijnor" onerror="handleLogoError(this)">
@@ -1312,6 +1468,7 @@ html,body{
   </div>
 
 </div>
+<div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 </div>
 
 <script>
@@ -1355,6 +1512,9 @@ const chatOptionsMenu = document.getElementById("chat-options-menu");
 const chatLanguageControls = document.getElementById("chat-language-controls");
 const selectedCountChip = document.getElementById("selected-count-chip");
 const toggleSelectBtn = document.getElementById("toggle-select-btn");
+const mobileSidebarToggle = document.getElementById("mobile-sidebar-toggle");
+const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+const appRoot = document.querySelector(".app");
 const messageContextMenu = document.getElementById("message-context-menu");
 const profileAvatarSlot = document.getElementById("profile-avatar-slot");
 const profileCardName = document.getElementById("profile-card-name");
@@ -1414,6 +1574,42 @@ chatLanguageControls?.addEventListener("click", event => {
 chatOptionsMenu?.addEventListener("click", handleChatOptionsClick);
 messageContextMenu?.addEventListener("click", handleMessageContextMenuClick);
 document.addEventListener("click", handleDocumentClick);
+
+function isMobileChatLayout() {
+  return window.matchMedia("(max-width: 768px)").matches;
+}
+
+function setMobileSidebarOpen(isOpen) {
+  if (!appRoot || !mobileSidebarToggle || !sidebarBackdrop) return;
+  appRoot.classList.toggle("sidebar-open", isOpen);
+  mobileSidebarToggle.setAttribute("aria-expanded", String(isOpen));
+}
+
+function openMobileSidebar() {
+  setMobileSidebarOpen(true);
+}
+
+function closeMobileSidebar() {
+  setMobileSidebarOpen(false);
+}
+
+function toggleMobileSidebar() {
+  if (!appRoot) return;
+  setMobileSidebarOpen(!appRoot.classList.contains("sidebar-open"));
+}
+
+mobileSidebarToggle?.addEventListener("click", event => {
+  event.stopPropagation();
+  toggleMobileSidebar();
+});
+
+sidebarBackdrop?.addEventListener("click", closeMobileSidebar);
+window.addEventListener("resize", () => {
+  if (!isMobileChatLayout()) {
+    closeMobileSidebar();
+  }
+});
+closeMobileSidebar();
 
 // ================= LOAD CONVERSATIONS FROM BACKEND =================
 async function loadConversationsFromBackend() {
@@ -2700,6 +2896,7 @@ function createConversationItem(conv) {
     const wrapper = document.createElement("div");
     wrapper.className = "conversation-item";
   wrapper.onclick = () => {
+      closeMobileSidebar();
       clearSelectedMessages();
       state.activeRenderedConversationId = null;
     updateState({ currentConversationId: convId });
@@ -3172,6 +3369,7 @@ input.addEventListener("keydown", e => {
 
 document.querySelector(".new-chat")
     .addEventListener("click", () => {
+    closeMobileSidebar();
         createNewConversation();
     resetDismissedAnnouncement();
     loadActiveAnnouncement();

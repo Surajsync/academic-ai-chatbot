@@ -225,6 +225,136 @@ tr:hover td{background:rgba(255,255,255,0.015)}
   .user-actions{grid-template-columns:1fr}
 }
 
+@media(max-width:920px){
+  body{
+    overflow:auto;
+    flex-direction:column;
+  }
+
+  .sidebar{
+    width:100%;
+    min-width:0;
+    flex-direction:row;
+    align-items:flex-start;
+    gap:0;
+    overflow-x:auto;
+    overflow-y:hidden;
+  }
+
+  .sidebar::after{
+    display:none;
+  }
+
+  .sidebar-logo,
+  .nav-group-label,
+  .admin-card,
+  .logout-btn span:not(:first-child){
+    display:none;
+  }
+
+  .sidebar-footer{
+    margin-top:0;
+    padding:0;
+    border-top:none;
+  }
+
+  .nav-item{
+    width:auto;
+    flex-shrink:0;
+    margin:12px 0 12px 10px;
+    padding:10px 12px;
+  }
+
+  .main{
+    min-width:0;
+  }
+
+  .topbar{
+    height:auto;
+    min-height:58px;
+    padding:12px 14px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+
+  .topbar-right{
+    width:100%;
+    justify-content:flex-start;
+    flex-wrap:wrap;
+  }
+
+  .content{
+    padding:14px;
+  }
+
+  .stats-grid{
+    grid-template-columns:1fr;
+  }
+
+  .toolbar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .search-wrap{
+    min-width:0;
+    width:100%;
+  }
+
+  .dash-grid{
+    grid-template-columns:1fr;
+  }
+
+  .table-wrap{
+    overflow-x:auto;
+  }
+
+  table{
+    min-width:860px;
+  }
+
+  .toast-wrap{
+    left:12px;
+    right:12px;
+    bottom:12px;
+  }
+
+  .toast{
+    min-width:0;
+    width:100%;
+  }
+}
+
+@media(max-width:560px){
+  .sidebar{
+    padding:10px 0;
+  }
+
+  .nav-item{
+    margin:10px 0 10px 8px;
+    padding:10px;
+  }
+
+  .topbar-title{
+    font-size:15px;
+  }
+
+  .breadcrumb{
+    width:100%;
+  }
+
+  .panel,
+  .stat-card,
+  .modal{
+    border-radius:12px;
+  }
+
+  .modal{
+    width:100%;
+    padding:20px;
+  }
+}
+
 .info-box{background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--blue);line-height:1.6;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
 .info-icon{font-size:15px;margin-top:1px;flex-shrink:0}
 .warn-box{background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--yellow);line-height:1.6;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start}
