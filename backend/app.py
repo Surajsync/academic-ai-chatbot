@@ -1514,8 +1514,17 @@ def reset_password_page():
 def healthz():
     return {"status": "ok", "service": "rec-bijnor-academic-ai"}
 
+
+@app.get("/")
+def health():
+    return {"status": "ok"}
+
 # Mount static files BEFORE the root mount (more specific routes first)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "../static")), name="files")
 
 # Must be LAST — serves all remaining page templates
 app.mount("/templates", StaticFiles(directory=TEMPLATES_DIR), name="templates")
+
+
+
+
