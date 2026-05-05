@@ -2,21 +2,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from backend.config import settings
 import logging
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-
 
 
 def _normalize_database_url(raw_url: str) -> str:
 	url = (raw_url or "").strip().strip('"').strip("'")
 	if not url:
 		raise ValueError("DATABASE_URL is required")
-
-	parts = urlsplit(url)
-	if parts.scheme.startswith("postgresql"):
-		query = dict(parse_qsl(parts.query, keep_blank_values=True))
-		query.setdefault("sslmode", "require")
-		url = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
-
+	
+	if url.startswith("postgresql") and "sslmode=" not in url:
+		separator = "&" if "?" in url else "?"
+		url = url + separator + "sslmode=require"
+	
 	return url
 
 
