@@ -200,10 +200,13 @@ Required environment variables:
 
 Optional environment variables:
 
+- `APP_BASE_URL` for password-reset links; if omitted, the app falls back to `RENDER_EXTERNAL_URL` and then `http://127.0.0.1:8000`
 - `ENABLE_LLM`, `GROQ_API_KEY`, `GROQ_MODEL`
 - `OPENAI_API_KEY`, `LLM_MODEL`
 - `GEMINI_API_KEY`, `GEMINI_MODEL`
-- `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`, `APP_BASE_URL`
+- `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`
+
+For Neon, use a PostgreSQL URL with `sslmode=require` in the query string. The app now adds that parameter automatically if it is missing.
 
 ## Main API Endpoints
 

@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +20,12 @@ class Settings(BaseSettings):
     RESEND_FROM_EMAIL: str | None = None
     REQUIRE_REGISTRATION_OTP: bool = False
     RESET_TOKEN_EXPIRE_MINS: int = 15
-    APP_BASE_URL: str
+    APP_BASE_URL: str = Field(
+        default_factory=lambda: os.getenv(
+            "APP_BASE_URL",
+            os.getenv("RENDER_EXTERNAL_URL", "http://127.0.0.1:8000"),
+        )
+    )
 
     OPENAI_API_KEY: str | None = None
     LLM_MODEL: str = "gpt-4o-mini"
