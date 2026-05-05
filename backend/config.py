@@ -45,3 +45,25 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def _sanitize_database_url(raw: str) -> str:
+    if not raw:
+        return raw
+    s = raw.strip()
+    # Handle values pasted from Neon/psql CLI like: psql 'postgresql://...'
+    if s.startswith("psql "):
+        # remove leading `psql ` and any surrounding quotes
+        s = s[4:].strip()
+    # strip surrounding single/double quotes if present
+    if (s.startswith("'") and s.endswith("'")) or (s.startswith('"') and s.endswith('"')):
+        s = s[1:-1]
+    return s
+
+
+# Defensive sanitization for common mis-pastes in Render env values
+try:
+    settings.DATABASE_URL = _sanitize_database_url(settings.DATABASE_URL)
+except Exception:
+    # Keep original value if anything unexpected happens; let startup show a clear error
+    pass
