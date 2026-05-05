@@ -52,11 +52,48 @@ app.add_middleware(
 app.include_router(chat_routes.router)
 
 
+def _apply_user_schema_compatibility(db: Session) -> None:
+    """Keep auth working on legacy databases that used users.hash instead of users.hashed_password."""
+    dialect = db.bind.dialect.name if db.bind else ""
+    if dialect != "postgresql":
+        return
+
+    # Ensure new column exists.
+    db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR"))
+
+    legacy_hash_exists = db.execute(
+        text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'users'
+              AND column_name = 'hash'
+            LIMIT 1
+            """
+        )
+    ).first() is not None
+
+    if legacy_hash_exists:
+        db.execute(
+            text(
+                """
+                UPDATE users
+                SET hashed_password = hash
+                WHERE hashed_password IS NULL
+                  AND hash IS NOT NULL
+                """
+            )
+        )
+    db.commit()
+
+
 @app.on_event("startup")
 def initialize_database() -> None:
     try:
         Base.metadata.create_all(bind=engine)
         with SessionLocal() as db:
+            _apply_user_schema_compatibility(db)
             _normalize_faq_activation(db)
         logger.info("Database schema initialized")
     except Exception:
