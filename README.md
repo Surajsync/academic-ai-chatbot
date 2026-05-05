@@ -206,7 +206,7 @@ Optional environment variables:
 - `GEMINI_API_KEY`, `GEMINI_MODEL`
 - `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`
 
-For Neon, use a PostgreSQL URL with `sslmode=require` in the query string. The app now adds that parameter automatically if it is missing.
+For Neon, use your Neon-provided PostgreSQL URL as-is; it includes the required SSL and connection settings.
 
 ## Main API Endpoints
 
