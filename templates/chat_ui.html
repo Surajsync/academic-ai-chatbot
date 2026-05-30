@@ -1202,6 +1202,34 @@ html,body{
   opacity:1;
 }
 
+.conversation-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-shrink:0;
+}
+
+.conversation-delete-btn{
+  border:none;
+  background:rgba(244,63,94,0.14);
+  color:#ffd7df;
+  border-radius:999px;
+  padding:4px 10px;
+  font-size:12px;
+  line-height:1;
+  cursor:pointer;
+  opacity:0;
+  transition:opacity 0.15s ease, background 0.15s ease;
+}
+
+.conversation-item:hover .conversation-delete-btn{
+  opacity:1;
+}
+
+.conversation-delete-btn:hover{
+  background:rgba(244,63,94,0.24);
+}
+
 #conversation-list{
   flex:1;
   overflow-y:auto;
@@ -1733,13 +1761,6 @@ const welcomePrompts = [
   "I can also point you to useful contacts like HODs, exam cells, and department guidance.",
   "Start with a simple question like 'What are the scholarship options for first-year students?'",
   "Need exam or timetable help? Ask directly and I’ll keep it simple and practical."
-];
-
-const welcomeConversationStarters = [
-  "Can you tell me my profile name?",
-  "Can we chat for a minute?",
-  "What can you help me with?",
-  "I feel confused about my next step"
 ];
 
   const welcomeBotMessages = [
@@ -2947,15 +2968,6 @@ function showWelcomeWithBotGreeting() {
     hero.innerText = randomPrompt;
 
     chatBox.appendChild(hero);
-
-    const starterChips = welcomeConversationStarters
-      .map(item => `<button type="button" class="suggestion-chip-btn" data-suggestion="${escapeHtml(item)}">${escapeHtml(item)}</button>`)
-      .join("");
-
-    const starterWrap = document.createElement("div");
-    starterWrap.className = "bot-suggestions";
-    starterWrap.innerHTML = starterChips;
-    chatBox.appendChild(starterWrap);
 }
 
 // ================= CREATE CONVERSATION ITEM =================
@@ -2975,7 +2987,23 @@ function createConversationItem(conv) {
     const title = document.createElement("span");
     title.textContent = conv.pinned ? "📌 " + conv.title : conv.title;
 
+    const actions = document.createElement("div");
+    actions.className = "conversation-actions";
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "conversation-delete-btn";
+    deleteButton.textContent = "Delete";
+    deleteButton.title = "Delete conversation";
+    deleteButton.addEventListener("click", event => {
+      event.stopPropagation();
+      deleteConversation(convId);
+    });
+
+    actions.appendChild(deleteButton);
+
     wrapper.appendChild(title);
+    wrapper.appendChild(actions);
     conversationList.appendChild(wrapper);
 }
 
